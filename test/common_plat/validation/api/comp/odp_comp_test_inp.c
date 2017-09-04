@@ -571,7 +571,7 @@ void comp_test_alg_deflate(void)
 void decomp_test_alg_deflate(void)
 {
 	decomp_alg_test(ODP_COMP_ALG_DEFLATE,
-		ODP_COMP_HASH_ALG_NONE, comp_deflate, COMP_DEFLATE_SIZE,
+		ODP_COMP_HASH_ALG_NONE, compressed_text_def, COMP_DEFLATE_SIZE,
 		plaintext, PLAIN_TEXT_SIZE);
 }
 
@@ -591,7 +591,7 @@ void comp_test_alg_zlib(void)
 void decomp_test_alg_zlib(void)
 {
 	decomp_alg_test(ODP_COMP_ALG_ZLIB,
-		ODP_COMP_HASH_ALG_NONE, comp_zlib, COMP_ZLIB_SIZE,
+		ODP_COMP_HASH_ALG_NONE, compressed_text_zlib, COMP_ZLIB_SIZE,
 		plaintext, PLAIN_TEXT_SIZE);
 }
 
