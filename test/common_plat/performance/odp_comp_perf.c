@@ -1384,7 +1384,7 @@ run_measure_one(comp_args_t *cargs,
 	odp_event_t event;
 	int rc = 0, i;
 	time_record_t start, end;
-	
+
 	pkt_pool = odp_pool_lookup(POOL_NAME);
 	if (pkt_pool == ODP_POOL_INVALID) {
 		app_err("pkt_pool not found\n");
@@ -1403,7 +1403,7 @@ run_measure_one(comp_args_t *cargs,
 	if (ODP_PACKET_INVALID == in_pkt) {
 		return -1;
 	}
-	
+
 	if (odp_packet_is_segmented(in_pkt))
 		app_info("Input packet is segmented\n");
 
@@ -1451,9 +1451,9 @@ run_measure_one(comp_args_t *cargs,
 				(ODP_EVENT_PACKET_COMP != odp_event_subtype(event)))
 				return -1;
 			ev_packet = odp_comp_packet_from_event(event);
-			if((ODP_EVENT_PACKET != 
-					odp_event_type(odp_packet_to_event(ev_packet))) 
-				|| (ODP_EVENT_PACKET_COMP != 
+			if((ODP_EVENT_PACKET !=
+					odp_event_type(odp_packet_to_event(ev_packet)))
+				|| (ODP_EVENT_PACKET_COMP !=
 					odp_event_subtype(odp_packet_to_event(ev_packet))))
 				return -1;
 
@@ -1565,7 +1565,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	num_payloads = i; // min value shoud be 1
+	num_payloads = i;
 	if (num_payloads == 0) {
 		num_payloads = 1;
 		payloads[0] = max_seg_len;
@@ -1598,21 +1598,21 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (cargs.poll) {
+	if (cargs.poll)
 		printf("Run in async poll mode\n");
-	} else {
+	else
 		printf("Run in sync mode\n");
-	}
 
 	if (cargs.alg_config) {
 		run_measure_one_config(&cargs, cargs.alg_config);
 	} else {
 		unsigned int i;
+
 		for (i = 0;
 		     i < (sizeof(algs_config) / sizeof(comp_alg_config_t));
 		     i++) {
-			run_measure_one_config(&cargs, algs_config );
-		}	
+			run_measure_one_config(&cargs, algs_config);
+		}
 	}
 
 	if (cargs.poll)
@@ -1647,7 +1647,7 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 		{NULL, 0, NULL, 0}
 	};
 
-	static const char *shortopts = "+a:c:df:hi:m:nl:spr"; //check
+	static const char *shortopts = "+a:c:df:hi:m:nl:spr";
 
 	/* let helper collect its own arguments (e.g. --odph_proc) */
 	odph_parse_options(argc, argv, shortopts, longopts);
