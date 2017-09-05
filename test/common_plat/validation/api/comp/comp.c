@@ -11,13 +11,13 @@
 #include "odp_comp_test_inp.h"
 #include "comp.h"
 
-#define PKT_POOL_NUM  64
-#define PKT_POOL_LEN  (8 * 1024)
+#define TEST_NUM_PKT  64
+#define TEST_PKT_LEN  (8 * 1024)
 
 odp_suiteinfo_t comp_suites[] = {
-	{ODP_COMP_SYNC_INP, comp_suite_sync_init,
+	{ODP_COMP_SYNC_TEST, comp_suite_sync_init,
 	 comp_suite_term, comp_suite},
-	{ODP_COMP_ASYNC_INP, comp_suite_async_init,
+	{ODP_COMP_ASYNC_TEST, comp_suite_async_init,
 	 comp_suite_term, comp_suite},
 	ODP_SUITE_INFO_NULL,
 };
@@ -45,30 +45,25 @@ int comp_init(odp_instance_t *inst)
 	}
 
 	odp_pool_param_init(&params);
-	params.pkt.seg_len = PKT_POOL_LEN;
-	params.pkt.len     = PKT_POOL_LEN;
-	params.pkt.num     = PKT_POOL_NUM;
+	params.pkt.seg_len = TEST_PKT_LEN;
+	params.pkt.len     = TEST_PKT_LEN;
+	params.pkt.num     = TEST_NUM_PKT;
 	params.type        = ODP_POOL_PACKET;
 
 	if (pool_capa.pkt.max_seg_len &&
-	    PKT_POOL_LEN > pool_capa.pkt.max_seg_len) {
+	    TEST_PKT_LEN > pool_capa.pkt.max_seg_len) {
 		fprintf(stderr, "Warning: small packet segment length\n");
 		params.pkt.seg_len = pool_capa.pkt.max_seg_len;
 	}
 
-	if (pool_capa.pkt.max_len &&
-	    PKT_POOL_LEN > pool_capa.pkt.max_len) {
-		fprintf(stderr, "Pool max packet length too small\n");
-		return -1;
-	}
-
-	pool = odp_pool_create("packet_pool", &params);
-
+	pool = odp_pool_create(COMP_PACKET_POOL, &params);
 	if (ODP_POOL_INVALID == pool) {
 		fprintf(stderr, "Packet pool creation failed.\n");
 		return -1;
 	}
-	out_queue = odp_queue_create("comp-out", NULL);
+
+	/* Queue to store compression/decompression events */
+	out_queue = odp_queue_create(COMP_OUT_QUEUE, NULL);
 	if (ODP_QUEUE_INVALID == out_queue) {
 		fprintf(stderr, "Comp outq creation failed.\n");
 		return -1;
@@ -82,7 +77,7 @@ int comp_term(odp_instance_t inst)
 	odp_pool_t pool;
 	odp_queue_t out_queue;
 
-	out_queue = odp_queue_lookup("comp-out");
+	out_queue = odp_queue_lookup(COMP_OUT_QUEUE);
 	if (ODP_QUEUE_INVALID != out_queue) {
 		if (odp_queue_destroy(out_queue))
 			fprintf(stderr, "Comp outq destroy failed.\n");
@@ -90,7 +85,7 @@ int comp_term(odp_instance_t inst)
 		fprintf(stderr, "Comp outq not found.\n");
 	}
 
-	pool = odp_pool_lookup("packet_pool");
+	pool = odp_pool_lookup(COMP_PACKET_POOL);
 	if (ODP_POOL_INVALID != pool) {
 		if (odp_pool_destroy(pool))
 			fprintf(stderr, "Packet pool destroy failed.\n");

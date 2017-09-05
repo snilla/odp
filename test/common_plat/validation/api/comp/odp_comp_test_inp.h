@@ -9,18 +9,10 @@
 #include <odp_cunit_common.h>
 
 /* Suite names */
-#define ODP_COMP_SYNC_INP         "odp_comp_sync_inp"
-#define ODP_COMP_ASYNC_INP        "odp_comp_async_inp"
-#define ODP_COMP_PACKET_SYNC_INP  "odp_comp_packet_sync_inp"
-#define ODP_COMP_PACKET_ASYNC_INP "odp_comp_packet_async_inp"
+#define ODP_COMP_SYNC_TEST	"Comp/decomp sync test"
+#define ODP_COMP_ASYNC_TEST	"Comp/decomp async test"
 
-/* Suite test array */
-extern odp_testinfo_t comp_suite[];
-
-int comp_suite_sync_init(void);
-int comp_suite_async_init(void);
-int comp_suite_packet_sync_init(void);
-int comp_suite_packet_async_init(void);
-int comp_suite_term(void);
+#define COMP_PACKET_POOL  "packet_pool"
+#define COMP_OUT_QUEUE	  "comp-out"
 
 #endif

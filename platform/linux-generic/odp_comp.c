@@ -35,10 +35,11 @@
 #define SHA_DIGEST_LENGTH 20
 #endif
 
-#define ODP_COMP_ALG_NUM (ODP_COMP_ALG_LZS+1)
+#define ODP_COMP_ALG_NUM (ODP_COMP_ALG_LZS + 1)
 #define ODP_COMP_MAX_LEVEL 3
 
-//#define DBG_COMP
+/* #define DBG_COMP */
+
 typedef struct comp_ctx_s {
 	z_streamp streamp;
 	odp_packet_t out_pkt;	/* buffer to hold compression o/p */
@@ -64,16 +65,15 @@ struct odp_comp_global_s {
 };
 
 static odp_comp_global_t *global;
-static FILE *gdfile = NULL;
-static void dump(void *data,int len)
+static FILE *gdfile;
+static void dump(void *data, int len)
 {
-	if(gdfile == NULL)
-		gdfile = fopen("dump","wb");
-		if(gdfile == NULL)
+	if (gdfile == NULL)
+		gdfile = fopen("dump", "wb");
+		if (gdfile == NULL)
 			printf("Couldn't open dump file\n");
-	if(gdfile)
-		fwrite(data,1,len,gdfile);
-	return;
+	if (gdfile)
+		fwrite(data, 1, len, gdfile);
 }
 
 static
@@ -117,20 +117,20 @@ null_comp_routine(odp_comp_op_param_t *params ODP_UNUSED,
 }
 
 static int compute_digest(odp_comp_generic_session_t *session,
-			  uint8_t *data, 
+			  uint8_t *data,
 			  uint32_t len)
 {
-	if(session->params.hash_algo == ODP_COMP_HASH_ALG_NONE)
+	if (session->params.hash_algo == ODP_COMP_HASH_ALG_NONE)
 		return 0;
 
 	EVP_MD_CTX *mdctx = (EVP_MD_CTX *) session->hash.ctx;
-	if(session->hash.init == 0) {
+
+	if (session->hash.init == 0) {
 		EVP_DigestInit_ex(mdctx, session->hash.dt, NULL);
 		session->hash.init = 1;
 	}
-	if (!EVP_DigestUpdate(mdctx, (const void *)data, (size_t)len)) {
+	if (!EVP_DigestUpdate(mdctx, (const void *)data, (size_t)len))
 		return -1;
-	}
 	return 0;
 }
 
@@ -139,17 +139,17 @@ int sha_gen(odp_comp_generic_session_t *session,
 	    odp_comp_op_result_t *result)
 {
 	uint32_t md_len;
-	EVP_MD_CTX *mdctx = (EVP_MD_CTX *) session->hash.ctx;
+	EVP_MD_CTX *mdctx = (EVP_MD_CTX *)session->hash.ctx;
 	odp_packet_t out_pkt = result->output.pkt.packet;
 	odp_packet_data_range_t *dr = &result->output.pkt.data_range;
 	comp_ctx_t *ctxp = session->comp.ctx;
 	uint8_t *data;
 	int ret;
-	
-	ODP_DBG("result->data_range.length %d b\n", 
+
+	ODP_DBG("result->data_range.length %d b\n",
 		result->output.pkt.data_range.length);
 
-	if(ctxp->hash_pending) {
+	if (ctxp->hash_pending) {
 		data = ctxp->md;
 		md_len = ctxp->md_len;
 	} else {
@@ -159,31 +159,30 @@ int sha_gen(odp_comp_generic_session_t *session,
 	}
 
 	uint32_t avail_inpkt = odp_packet_len(out_pkt) - dr->offset;
-	
-	if( avail_inpkt >= md_len)
+
+	if (avail_inpkt >= md_len)
 		avail_inpkt = md_len;
 
 	ret = odp_packet_copy_from_mem(out_pkt,
-				 dr->offset + dr->length,
-				 avail_inpkt,
-				 (const void *)data);
-	if(ret < 0)
+				       dr->offset + dr->length,
+				       avail_inpkt,
+				       (const void *)data);
+	if (ret < 0)
 		ODP_DBG("odp_packet_copy_from_mem() failed\n");
 
 	dr->length += avail_inpkt;
-	if(md_len > avail_inpkt) {
+	if (md_len > avail_inpkt) {
 		md_len -= avail_inpkt;
 		ctxp->md = data + avail_inpkt;
 		ctxp->md_len = md_len;
 		result->err = ODP_COMP_ERR_OUT_OF_SPACE;
 		ctxp->hash_pending = 1;
-	}
-	else {
+	} else {
 		result->err = ODP_COMP_ERR_NONE;
 		ctxp->hash_pending = 0;
 	}
 
-	ODP_DBG("result->data_range.length %d\n",dr->length);
+	ODP_DBG("result->data_range.length %d\n", dr->length);
 	return 0;
 }
 
@@ -209,11 +208,11 @@ int init_sha(odp_comp_generic_session_t *session)
 		break;
 	}
 
-	if(session->hash.md == NULL)
+	if (session->hash.md == NULL)
 		return -1;
 
 	session->hash.ctx = (void *)mdctx;
-	
+
 	return 0;
 }
 
@@ -232,14 +231,13 @@ static void reset_ctx(comp_ctx_t *ctxp)
 	ctxp->out_pkt = ODP_PACKET_INVALID;
 	ctxp->in_pkt = ODP_PACKET_INVALID;
 	ctxp->len = 0;
-	if(ctxp->md != NULL) {
+	if (ctxp->md != NULL)
 		ctxp->md = NULL;
-	}
 	ctxp->md_len = 0;
 	ctxp->read = 0;
 	ctxp->sync = 0;
-	return;
 }
+
 static int process_input(odp_comp_op_param_t *params,
 			 odp_comp_generic_session_t *session,
 			 odp_comp_op_result_t *result)
@@ -257,14 +255,14 @@ static int process_input(odp_comp_op_param_t *params,
 	odp_packet_data_range_t *res_data_range;
 	int finish = 0;
 
-	ctxp = (comp_ctx_t *) (session->comp.ctx);
+	ctxp = (comp_ctx_t *)(session->comp.ctx);
 	strmp = ctxp->streamp;
 	sync = ctxp->sync;
 	res_data_range = &result->output.pkt.data_range;
 
-//	start = params->output.pkt.data_range.offset;
+	/* start = params->output.pkt.data_range.offset; */
 	start = res_data_range->offset + res_data_range->length;
-	output_end = params->output.pkt.data_range.length - 
+	output_end = params->output.pkt.data_range.length -
 		     res_data_range->length;
 
 	do {
@@ -294,16 +292,16 @@ static int process_input(odp_comp_op_param_t *params,
 
 		if (session->params.op == ODP_COMP_OP_COMPRESS)
 			ret = deflate(strmp, sync);
-		else 
+		else
 			ret = inflate(strmp, sync);
 
 		ODP_DBG("ret %d strmp->avail_out %d avail_in %d\n",
-			ret,strmp->avail_out,strmp->avail_in);
+			ret, strmp->avail_out, strmp->avail_in);
 
 		out_len = out_len - strmp->avail_out;
 		written += out_len;
 
-		dump(strmp->next_out,out_len);
+		dump(strmp->next_out, out_len);
 
 		if (session->params.op == ODP_COMP_OP_DECOMPRESS)
 			compute_digest(session, out_data, out_len);
@@ -332,7 +330,7 @@ static int process_input(odp_comp_op_param_t *params,
 	} while (!strmp->avail_out && (start < output_end));
 
 	res_data_range->length = written;
-	//res_data_range->length += written;
+	/* res_data_range->length += written; */
 	res_data_range->offset = params->output.pkt.data_range.offset;
 	result->output.pkt.packet = ctxp->out_pkt;
 
@@ -343,11 +341,10 @@ static int process_input(odp_comp_op_param_t *params,
 		ODP_DBG("Ran out of space.  (out avail) %d,"
 			"to process %d\n", strmp->avail_out, strmp->avail_in);
 		result->err = ODP_COMP_ERR_OUT_OF_SPACE;
-	} else if(finish && 
-		 (session->params.hash_algo != ODP_COMP_HASH_ALG_NONE)) {
+	} else if (finish &&
+		   (session->params.hash_algo != ODP_COMP_HASH_ALG_NONE)) {
 		ret = sha_gen(session, result);
-	}
-	else {
+	} else {
 		ctxp->pending = 0;
 		result->err = ODP_COMP_ERR_NONE;
 	}
@@ -390,15 +387,13 @@ static int do_deflate(odp_comp_op_param_t *params,
 
 	if (ctxp->pending) {
 		ODP_DBG("Resume last pending request\n");
-		if(ctxp->hash_pending) {
+		if (ctxp->hash_pending)
 			ret = sha_gen(session, result);
-		}
-		else {
+		else
 			ret = process_input(params, session, result);
-		}
-		if (result->err != ODP_COMP_ERR_OUT_OF_SPACE) {
+
+		if (result->err != ODP_COMP_ERR_OUT_OF_SPACE)
 				reset_ctx(ctxp);
-		}
 		return ret;
 	}
 
@@ -412,35 +407,34 @@ static int do_deflate(odp_comp_op_param_t *params,
 	len = params->input.pkt.data_range.length;
 	in_pkt = params->input.pkt.packet;
 	uint32_t consumed = 0;
+
 	while (read < (len + params->input.pkt.data_range.offset)) {
-		data = odp_packet_offset( in_pkt,
-					read,
-					&in_len,
-					&in_seg);
+		data = odp_packet_offset(in_pkt,
+					 read,
+					 &in_len,
+					 &in_seg);
 		ODP_DBG("data 0x%x in_len %d seg 0x%x len %d\n",
-			data, in_len, in_seg,len);
+			data, in_len, in_seg, len);
 
 		if (in_len > len)
 			in_len = len;
 
-		//tracker for data consumed from input
+		/* tracker for data consumed from input */
 		consumed += in_len;
-		//dump(data,in_len);
+		/* dump(data,in_len); */
 
 		strmp->next_in = data;
 		strmp->avail_in = in_len;
 
-		
-		if (params->last && consumed >=len) {
+		if (params->last && consumed >= len) {
 			ODP_DBG("This is last chunk\n");
 			ctxp->sync = Z_FINISH;
 		} else {
 			ctxp->sync = Z_NO_FLUSH;
 		}
-		
-		if (session->params.op == ODP_COMP_OP_COMPRESS) {
+
+		if (session->params.op == ODP_COMP_OP_COMPRESS)
 			compute_digest(session, data, in_len);
-		}
 
 		ret = process_input(params, session, result);
 
@@ -479,12 +473,10 @@ static int init_def(odp_comp_generic_session_t *session,
 	int32_t window_bits = WINDOW_BITS;
 	odp_comp_level_t cl;
 	odp_comp_huffman_code_t cc;
-
 	/* look for alignment here */
 	int malloc_len = sizeof(z_stream) + sizeof(*comp_ctxp);
 
-	ODP_DBG("%s Enter \n", __func__);
-
+	ODP_DBG("%s Enter\n", __func__);
 	/* optional check as such may not required */
 	ODP_ASSERT(strcmp(zlibVersion(), ZLIB_VERSION) == 0);
 
@@ -508,7 +500,7 @@ static int init_def(odp_comp_generic_session_t *session,
 	streamp->zalloc = NULL;
 	streamp->zfree = NULL;
 
-	switch(params->comp_algo) {
+	switch (params->comp_algo) {
 	case ODP_COMP_ALG_ZLIB:
 		cl = params->algo_param.zlib.def.level;
 		cc = params->algo_param.zlib.def.comp_code;
@@ -523,34 +515,35 @@ static int init_def(odp_comp_generic_session_t *session,
 	}
 
 	if (cl == ODP_COMP_LEVEL_DEFAULT) {
-		level = Z_DEFAULT_COMPRESSION;//Z_BEST_COMPRESSION;
+		level = Z_DEFAULT_COMPRESSION; /* Z_BEST_COMPRESSION; */
 	} else {
 		/*
 			Current distribution is like:
-			
+
 			if level falls in lower half = set level to
 			best speed
 			if level falls in middle == set default
 			if level falls in upper hald = set level to
 			best compression
-		
+
 			please note this is reference distribution.
 			this can be tuned to generate more uniform
 			distributation by uniformly distributing
 			range between speed vs default vs level.
 		*/
-	
+
 		odp_comp_level_t mid = (ODP_COMP_LEVEL_MAX + 1) >> 1;
-		if(cl >= ODP_COMP_LEVEL_MIN &&
-		   cl < mid)
+
+		if (cl >= ODP_COMP_LEVEL_MIN &&
+		    cl < mid)
 			level = Z_BEST_SPEED;
-		if(cl == mid)
+		if (cl == mid)
 			level = Z_DEFAULT_COMPRESSION;
-		if(cl > mid && 
-		   cl <= ODP_COMP_LEVEL_MAX)
+		if (cl > mid &&
+		    cl <= ODP_COMP_LEVEL_MAX)
 			level = Z_BEST_COMPRESSION;
 	}
-	
+
 	switch (cc) {
 	case ODP_COMP_HUFFMAN_CODE_DEFAULT:
 	case ODP_COMP_HUFFMAN_CODE_DYNAMIC:/*Z_HUFFMAN_ONLY */
@@ -562,13 +555,14 @@ static int init_def(odp_comp_generic_session_t *session,
 	default:
 		return ODP_COMP_SES_CREATE_ERR_NOT_SUPPORTED;
 	}
-	ODP_DBG(" level %d strategy %d window %d\n",level,strategy,window_bits);
+	ODP_DBG(" level %d strategy %d window %d\n",
+		level, strategy, window_bits);
 
 	if (ODP_COMP_OP_COMPRESS == params->op) {
 		/*  Or use deflateInit2. Using deflateInit2 can produce
-		   raw deflate data as well. See cavm_zlib implementation once
+		    raw deflate data as well. See cavm_zlib implementation once
 		 */
-		ODP_DBG("%s:%d\n",__FILE__,__LINE__);
+		ODP_DBG("%s:%d\n", __FILE__, __LINE__);
 		if (deflateInit2(streamp, level, Z_DEFLATED, window_bits,
 				 MEM_LEVEL, strategy) != Z_OK) {
 			ODP_DBG("Err in Deflate Initialization %s\n",
@@ -647,7 +641,7 @@ static int term_def(odp_comp_generic_session_t *session)
 
 	free(ctxp);
 	ctxp = NULL;
-	if(gdfile != NULL) {
+	if (gdfile != NULL) {
 		fclose(gdfile);
 		gdfile = NULL;
 	}
@@ -677,19 +671,19 @@ int
 odp_comp_alg_capability(odp_comp_alg_t comp,
 			odp_comp_alg_capability_t capa[], int num)
 {
-	if(num <=0)
+	if (num <= 0)
 		return -1;
 
 	switch (comp) {
 	case ODP_COMP_ALG_ZLIB:
 		capa[0].support_dict = 1;
-		capa[0].dict_len = 32*1024;
+		capa[0].dict_len = 32 * 1024;
 		capa[0].hash_algo.all_bits = 1;
 		capa[0].support_dict = 0;
-		/* sw zlib support 3 - Z_BEST_SPEED, Z_BEST_COMPRESSION 
-		and DEFAULT
+		/* sw zlib support 3 - Z_BEST_SPEED, Z_BEST_COMPRESSION
+		   and DEFAULT
 		*/
-		capa[0].max_level = 3; 
+		capa[0].max_level = 3;
 		return 1;
 	case ODP_COMP_ALG_DEFLATE:
 		capa[0].hash_algo.all_bits = 1;
@@ -697,7 +691,7 @@ odp_comp_alg_capability(odp_comp_alg_t comp,
 		capa[0].max_level = 3;
 		return 1;
 	default:
-		/* Eror unsupported enum */
+		/* Error unsupported enum */
 		return -1;
 	}
 	return -1;
@@ -708,7 +702,7 @@ odp_comp_hash_alg_capability(odp_comp_hash_alg_t hash,
 			     odp_comp_hash_alg_capability_t capa[],
 			     int num)
 {
-	if(num <=0)
+	if (num <= 0)
 		return -1;
 
 	switch (hash) {
@@ -733,6 +727,7 @@ int odp_comp_set_dict(odp_comp_session_t session,
 		      const odp_comp_dict_t *dict)
 {
 	odp_comp_generic_session_t *gen_session;
+
 	gen_session = (odp_comp_generic_session_t *)session;
 	comp_ctx_t *comp_ctx;
 	int ret;
@@ -747,7 +742,7 @@ int odp_comp_set_dict(odp_comp_session_t session,
 		return -1;
 	}
 
-	comp_ctx = (comp_ctx_t *) (gen_session->comp.ctx);
+	comp_ctx = (comp_ctx_t *)(gen_session->comp.ctx);
 
 	if (gen_session->params.op == ODP_COMP_OP_COMPRESS) {
 		ret = deflateSetDictionary(comp_ctx->streamp,
@@ -780,7 +775,7 @@ odp_comp_session_create(odp_comp_session_param_t *params,
 
 	/* Copy stuff over */
 	memcpy(&session->params, params, sizeof(*params));
-	
+
 	/* Process based on compress */
 	switch (params->comp_algo) {
 	case ODP_COMP_ALG_NULL:
@@ -834,7 +829,7 @@ int odp_comp_session_destroy(odp_comp_session_t session)
 	default:
 		break;
 	}
-	
+
 	if (rc < 0) {
 		ODP_ERR("Compression Unit could not be terminated\n");
 		return -1;
@@ -863,7 +858,7 @@ odp_comp_compress(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 	/* Fill in result */
 	result->ctx = params->ctx;
 	result->output.pkt.packet = params->output.pkt.packet;
-	result->output.pkt.data_range.offset = 
+	result->output.pkt.data_range.offset =
 		params->output.pkt.data_range.offset;
 	result->output.pkt.data_range.length = 0;
 
@@ -883,12 +878,9 @@ odp_comp_compress(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 	if (ODP_COMP_ASYNC == session->params.mode) {
 		odp_event_t completion_event;
 
-
 		/* Linux generic will always use packet for completion event */
 		completion_event = odp_packet_to_event
 					(params->output.pkt.packet);
-
-
 
 		ODP_DBG("Enqueue Event\n");
 		if (odp_queue_enq(session->params.compl_queue,
@@ -901,11 +893,12 @@ odp_comp_compress(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 }
 
 int
-odp_comp_compress_enq(odp_comp_op_param_t * params)
+odp_comp_compress_enq(odp_comp_op_param_t *params)
 {
 	odp_comp_op_result_t result;
 	int ret;
-	ret = odp_comp_compress(params,&result);
+
+	ret = odp_comp_compress(params, &result);
 	return ret;
 }
 
@@ -926,7 +919,7 @@ odp_comp_decomp(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 	/* Fill in result */
 	result->ctx = params->ctx;
 	result->output.pkt.packet = params->output.pkt.packet;
-	result->output.pkt.data_range.offset = 
+	result->output.pkt.data_range.offset =
 		params->output.pkt.data_range.offset;
 	result->output.pkt.data_range.length = 0;
 
@@ -936,7 +929,7 @@ odp_comp_decomp(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 }
 
 int
-odp_comp_decomp_enq(odp_comp_op_param_t * params)
+odp_comp_decomp_enq(odp_comp_op_param_t *params)
 {
 	int ret;
 	odp_event_t completion_event;
@@ -951,8 +944,8 @@ odp_comp_decomp_enq(odp_comp_op_param_t * params)
 
 	op_result = get_op_result_from_packet(params->output.pkt.packet);
 
-	ret = odp_comp_decomp(params,&op_result->result);
-	if(ret <0)
+	ret = odp_comp_decomp(params, &op_result->result);
+	if (ret < 0)
 		return -1;
 
 	/* Asynchronous, build result (no HW so no errors) and send
@@ -1062,7 +1055,6 @@ int odp_comp_result(odp_packet_t packet,
 /** Get printable format of odp_comp_session_t */
 uint64_t odp_comp_session_to_u64(odp_comp_session_t hdl)
 {
-    return (uint64_t)hdl;
+	return (uint64_t)hdl;
 }
-
 
