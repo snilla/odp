@@ -1082,14 +1082,13 @@ static uint8_t plaintext[] = {
  */
 typedef struct {
 	const char *name;		      /**< Algorithm name */
-	odp_comp_session_param_t session;   /**< Prefilled comp session params */
+	odp_comp_session_param_t session; /**< Prefilled comp session params */
 } comp_alg_config_t;
 
 /**
  * Parsed command line comp/decomp arguments. Describes test configuration.
  */
 typedef struct {
-
 	/**
 	 * Number of iterations to repeat comp/decomp operation to get good
 	 * average number. Specified through -i or --iterations option.
@@ -1098,8 +1097,8 @@ typedef struct {
 	int iteration_count;
 
 	/**
-	 * Pointer to selected algorithm to test. If NULL all available (deflate and
-	 * zlib) alogorthims are tested. Name of algorithm is passed through
+	 * Pointer to selected algorithm to test. If NULL all available (deflate
+	 * and zlib) alogorthims are tested. Name of algorithm is passed through
 	 * -a or --algorithm option.
 	 */
 	comp_alg_config_t *alg_config;
@@ -1164,7 +1163,7 @@ static unsigned int payloads[] = {
 };
 
 /** Number of payloads used in the test */
-static unsigned num_payloads;
+static unsigned int num_payloads;
 
 /**
  * Set of known algorithms to test
@@ -1306,7 +1305,7 @@ print_result_header(void)
 {
 	printf(REPORT_HEADER,
 	       "algorithm", "avg over #", "payload (bytes)", "elapsed (us)",
-	       "rusg self (us)", "rusg thrd (us)", "throughput (Kbps)");
+	       "rusg self (us)", "rusg thrd (us)", "throughput (KBps)");
 }
 
 /**
@@ -1358,7 +1357,7 @@ create_session_from_config(odp_comp_session_t *session,
 		params.mode = ODP_CRYPTO_SYNC;
 	}
 	if (odp_comp_session_create(&params, session,
-				      &ses_create_rc)) {
+				    &ses_create_rc)) {
 		app_err("comp session create failed.\n");
 		return -1;
 	}
@@ -1380,49 +1379,50 @@ run_measure_one(comp_args_t *cargs,
 	odp_comp_op_result_t comp_result;
 	odp_pool_t pkt_pool;
 	odp_queue_t out_queue;
-	odp_packet_t in_pkt = ODP_PACKET_INVALID, out_pkt, ev_packet;
+	odp_packet_t in_pkt, out_pkt, ev_packet;
 	odp_event_t event;
 	int rc = 0, i;
 	time_record_t start, end;
 
 	pkt_pool = odp_pool_lookup(POOL_NAME);
 	if (pkt_pool == ODP_POOL_INVALID) {
-		app_err("pkt_pool not found\n");
+		app_err("%s not found\n", POOL_NAME);
 		return -1;
 	}
 
-	out_queue = odp_queue_lookup(QUEUE_NAME);
 	if (cargs->poll) {
+		out_queue = odp_queue_lookup(QUEUE_NAME);
 		if (out_queue == ODP_QUEUE_INVALID) {
 			app_err("%s queue not found\n", QUEUE_NAME);
 			return -1;
 		}
+	} else {
+		out_queue = ODP_QUEUE_INVALID;
 	}
 
 	in_pkt = odp_packet_alloc(pkt_pool, payload_length);
-	if (ODP_PACKET_INVALID == in_pkt) {
+	if (in_pkt == ODP_PACKET_INVALID)
 		return -1;
-	}
 
 	if (odp_packet_is_segmented(in_pkt))
-		app_info("Input packet is segmented\n");
+		app_info("Input packet segmented. This test only supports unsegmented packets\n");
 
 	/* Fill in pakcet */
-	rc = odp_packet_copy_from_mem(op_params.input.pkt.packet,
+	rc = odp_packet_copy_from_mem(in_pkt,
 				      0,
 				      payload_length,
 				      plaintext);
-	if(rc) {
-		odp_packet_free(in_pkt);
-		return -1;
-	}
+	if (rc < 0)
+		goto free_in;
 
 	out_pkt = odp_packet_alloc(pkt_pool, payload_length);
-	if (ODP_PACKET_INVALID == out_pkt)
-		return -1;
+	if (out_pkt == ODP_PACKET_INVALID) {
+		rc = -1;
+		goto free_in;
+	}
 
 	if (odp_packet_is_segmented(out_pkt))
-		app_info("Output packet is segmented\n");
+		app_info("Output packet segmented. This test only supports unsegmented packets\n");
 
 	op_params.output.pkt.data_range.offset = 0;
 	op_params.output.pkt.data_range.length = payload_length;
@@ -1446,18 +1446,30 @@ run_measure_one(comp_args_t *cargs,
 			/* Poll completion queue for results */
 			do {
 				event = odp_queue_deq(out_queue);
-			} while(event == ODP_EVENT_INVALID);
-			if((ODP_EVENT_PACKET != odp_event_type(event)) ||
-				(ODP_EVENT_PACKET_COMP != odp_event_subtype(event)))
-				return -1;
+			} while (event == ODP_EVENT_INVALID);
+
+			if ((odp_event_type(event) != ODP_EVENT_PACKET) ||
+			    (odp_event_subtype(event) !=
+			     ODP_EVENT_PACKET_COMP)) {
+				rc = -1;
+				break;
+			}
+
 			ev_packet = odp_comp_packet_from_event(event);
-			if((ODP_EVENT_PACKET !=
-					odp_event_type(odp_packet_to_event(ev_packet)))
-				|| (ODP_EVENT_PACKET_COMP !=
-					odp_event_subtype(odp_packet_to_event(ev_packet))))
-				return -1;
+			if ((odp_event_type(odp_packet_to_event(ev_packet)) !=
+			     ODP_EVENT_PACKET) ||
+			     (odp_event_subtype(odp_packet_to_event(ev_packet))
+				 != ODP_EVENT_PACKET_COMP)) {
+				rc = -1;
+				break;
+			}
 
 			rc = odp_comp_result(ev_packet, &comp_result);
+			if (rc < 0) {
+				app_err("failed to get comp result: rc = %d\n",
+					rc);
+				break;
+			}
 
 		} else {
 			rc = odp_comp_compress(&op_params, &comp_result);
@@ -1487,8 +1499,9 @@ run_measure_one(comp_args_t *cargs,
 					cargs->iteration_count;
 	}
 
-	odp_packet_free(in_pkt);
 	odp_packet_free(out_pkt);
+free_in:
+	odp_packet_free(in_pkt);
 
 	return rc < 0 ? rc : 0;
 }
@@ -1508,7 +1521,7 @@ run_measure_one_config(comp_args_t *cargs,
 	if (create_session_from_config(&session, config, cargs))
 		return -1;
 
-	unsigned i;
+	unsigned int i;
 
 	print_result_header();
 	for (i = 0; i < num_payloads; i++) {
@@ -1535,7 +1548,7 @@ int main(int argc, char *argv[])
 	odp_instance_t instance;
 	odp_pool_capability_t capa;
 	uint32_t max_seg_len;
-	unsigned i;
+	unsigned int i;
 
 	memset(&cargs, 0, sizeof(cargs));
 
@@ -1561,14 +1574,10 @@ int main(int argc, char *argv[])
 	for (i = 0; i < sizeof(payloads) / sizeof(unsigned int); i++) {
 		if (payloads[i] > max_seg_len) {
 			payloads[i] = max_seg_len;
+			num_payloads = i + 1;
 			break;
 		}
-	}
-
-	num_payloads = i;
-	if (num_payloads == 0) {
-		num_payloads = 1;
-		payloads[0] = max_seg_len;
+		num_payloads++;
 	}
 
 	/* Create packet pool */
@@ -1603,17 +1612,11 @@ int main(int argc, char *argv[])
 	else
 		printf("Run in sync mode\n");
 
-	if (cargs.alg_config) {
+	/* If algorithm is not provided, run for default one */
+	if (cargs.alg_config)
 		run_measure_one_config(&cargs, cargs.alg_config);
-	} else {
-		unsigned int i;
-
-		for (i = 0;
-		     i < (sizeof(algs_config) / sizeof(comp_alg_config_t));
-		     i++) {
-			run_measure_one_config(&cargs, algs_config);
-		}
-	}
+	else
+		run_measure_one_config(&cargs, algs_config);
 
 	if (cargs.poll)
 		odp_queue_destroy(out_queue);
@@ -1647,7 +1650,7 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 		{NULL, 0, NULL, 0}
 	};
 
-	static const char *shortopts = "+a:c:df:hi:m:nl:spr";
+	static const char *shortopts = "+a:c:df:hi:m:nl:spr"; /* check */
 
 	/* let helper collect its own arguments (e.g. --odph_proc) */
 	odph_parse_options(argc, argv, shortopts, longopts);
@@ -1699,9 +1702,9 @@ static void usage(char *progname)
 {
 	printf("\n"
 	       "Usage: %s OPTIONS\n"
-	       "  E.g. %s -i 100000\n"
+	       "  E.g. %s -i 1000\n"
 	       "\n"
-	       "OpenDataPlane comp speed measure.\n"
+	       "OpenDataPlane compression speed measure.\n"
 	       "Optional OPTIONS\n"
 	       "  -a, --algorithm <name> Specify algorithm name (default deflate)\n"
 	       "			 Supported values are:\n",
@@ -1711,7 +1714,7 @@ static void usage(char *progname)
 	printf(/*"  -d, --debug	       Enable dump of processed packets.\n"*/
 	       "  -i, --iterations <number> Number of iterations.\n"
 	       "  -p, --poll           Poll completion queue for completion events"
-	       "                       (async mode).\n"
+	       " (async mode).\n"
 	       "  -h, --help	       Display help and exit.\n"
 	       "\n");
 }
