@@ -728,7 +728,7 @@ int odp_comp_set_dict(odp_comp_session_t session,
 {
 	odp_comp_generic_session_t *gen_session;
 
-	gen_session = (odp_comp_generic_session_t *)session;
+	gen_session = (odp_comp_generic_session_t *)(intptr_t)session;
 	comp_ctx_t *comp_ctx;
 	int ret;
 
@@ -936,7 +936,7 @@ odp_comp_decomp_enq(odp_comp_op_param_t *params)
 	odp_comp_generic_op_result_t *op_result;
 	struct odp_comp_generic_session *session;
 
-	session = (struct odp_comp_generic_session *)params->session;
+	session = (struct odp_comp_generic_session *)(intptr_t)params->session;
 
 	/* Linux generic will always use packet for completion event */
 	completion_event = odp_packet_to_event
