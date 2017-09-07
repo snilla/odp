@@ -1354,7 +1354,7 @@ create_session_from_config(odp_comp_session_t *session,
 		params.mode = ODP_COMP_ASYNC;
 	} else {
 		params.compl_queue = ODP_QUEUE_INVALID;
-		params.mode = ODP_CRYPTO_SYNC;
+		params.mode = ODP_COMP_SYNC;
 	}
 	if (odp_comp_session_create(&params, session,
 				    &ses_create_rc)) {
