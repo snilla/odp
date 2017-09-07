@@ -20,13 +20,14 @@ CPPFLAGS="$AM_CPPFLAGS $CPPFLAGS"
 ##########################################################################
 # Check for ZLIB availability
 ##########################################################################
-AC_CHECK_LIB([z], [deflateInit_],[],
+AC_CHECK_LIB([z], [deflateInit_],[ZLIB_LIBS="-lz"],
              [AC_MSG_FAILURE([Zlib libraries required])],)
 
 
 AC_CHECK_HEADERS([zlib.h], [],
              [AC_MSG_ERROR([ZLib headers required])])
 
+AC_SUBST([ZLIB_LIBS])
 ##########################################################################
 # Restore old saved variables
 ##########################################################################
