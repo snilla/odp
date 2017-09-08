@@ -1175,14 +1175,18 @@ static comp_alg_config_t algs_config[] = {
 			.op = ODP_COMP_OP_COMPRESS,
 			.comp_algo = ODP_COMP_ALG_DEFLATE,
 			.hash_algo = ODP_COMP_HASH_ALG_NONE,
+			.compl_queue = ODP_QUEUE_INVALID,
+			.mode = ODP_COMP_SYNC,
 		},
 	},
 	{
 		.name = "zlib",
 		.session = {
 			.op = ODP_COMP_OP_COMPRESS,
-			.comp_algo = ODP_COMP_ALG_DEFLATE,
+			.comp_algo = ODP_COMP_ALG_ZLIB,
 			.hash_algo = ODP_COMP_HASH_ALG_NONE,
+			.compl_queue = ODP_QUEUE_INVALID,
+			.mode = ODP_COMP_SYNC,
 		},
 	},
 };
@@ -1341,8 +1345,14 @@ create_session_from_config(odp_comp_session_t *session,
 	odp_comp_session_param_init(&params);
 	memcpy(&params, &config->session, sizeof(odp_comp_session_param_t));
 	params.op = ODP_COMP_OP_COMPRESS;
-	params.comp_algo = ODP_COMP_ALG_DEFLATE;
-	params.hash_algo = ODP_COMP_HASH_ALG_NONE;
+	params.comp_algo = config->session.comp_algo;
+	params.hash_algo = config->session.hash_algo;
+
+	/* Fastest in speed */
+	if (config->session.comp_algo == ODP_COMP_ALG_DEFLATE)
+		params.algo_param.deflate.level = ODP_COMP_LEVEL_MIN;
+	else if (config->session.comp_algo == ODP_COMP_ALG_ZLIB)
+		params.algo_param.zlib.def.level = ODP_COMP_LEVEL_MIN;
 
 	if (cargs->poll) {
 		out_queue = odp_queue_lookup(QUEUE_NAME);
@@ -1516,12 +1526,38 @@ run_measure_one_config(comp_args_t *cargs,
 {
 	comp_run_result_t result;
 	odp_comp_session_t session;
+	odp_comp_capability_t capa;
 	int rc = 0;
+	unsigned int i;
+
+	/* Check capabilities */
+	rc = odp_comp_capability(&capa);
+
+	if (config->session.comp_algo == ODP_COMP_ALG_NULL &&
+	    !(capa.comp_algos.bit.null))
+		rc = -1;
+	if (config->session.comp_algo == ODP_COMP_ALG_DEFLATE &&
+	    !(capa.comp_algos.bit.deflate))
+		rc = -1;
+	if (config->session.comp_algo == ODP_COMP_ALG_ZLIB &&
+	    !(capa.comp_algos.bit.zlib))
+		rc = -1;
+	if (config->session.comp_algo == ODP_COMP_ALG_LZS &&
+	    !(capa.comp_algos.bit.lzs))
+		rc = -1;
+	if (config->session.hash_algo == ODP_COMP_HASH_ALG_SHA1 &&
+	    !(capa.hash_algos.bit.sha1))
+		rc = -1;
+	if (config->session.hash_algo == ODP_COMP_HASH_ALG_SHA256 &&
+	    !(capa.hash_algos.bit.sha256))
+		rc = -1;
+	if (rc < 0) {
+		app_err("capabilities do not match\n");
+		return rc;
+	}
 
 	if (create_session_from_config(&session, config, cargs))
 		return -1;
-
-	unsigned int i;
 
 	print_result_header();
 	for (i = 0; i < num_payloads; i++) {

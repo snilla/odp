@@ -65,6 +65,8 @@ struct odp_comp_global_s {
 };
 
 static odp_comp_global_t *global;
+
+#ifdef DBG_COMP
 static FILE *gdfile;
 static void dump(void *data, int len)
 {
@@ -75,6 +77,7 @@ static void dump(void *data, int len)
 	if (gdfile)
 		fwrite(data, 1, len, gdfile);
 }
+#endif
 
 static
 odp_comp_generic_op_result_t *get_op_result_from_packet(odp_packet_t pkt)
@@ -300,9 +303,9 @@ static int process_input(odp_comp_op_param_t *params,
 
 		out_len = out_len - strmp->avail_out;
 		written += out_len;
-
+#ifdef ODP_COMP
 		dump(strmp->next_out, out_len);
-
+#endif
 		if (session->params.op == ODP_COMP_OP_DECOMPRESS)
 			compute_digest(session, out_data, out_len);
 
@@ -421,8 +424,9 @@ static int do_deflate(odp_comp_op_param_t *params,
 
 		/* tracker for data consumed from input */
 		consumed += in_len;
+#ifdef ODP_COMP
 		/* dump(data,in_len); */
-
+#endif
 		strmp->next_in = data;
 		strmp->avail_in = in_len;
 
@@ -641,10 +645,12 @@ static int term_def(odp_comp_generic_session_t *session)
 
 	free(ctxp);
 	ctxp = NULL;
+#ifdef ODP_COMP
 	if (gdfile != NULL) {
 		fclose(gdfile);
 		gdfile = NULL;
 	}
+#endif
 	return 0;
 }
 
