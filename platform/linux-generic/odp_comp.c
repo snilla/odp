@@ -253,6 +253,7 @@ static int process_input(odp_comp_op_param_t *params,
 	uint32_t written = 0;
 	uint32_t start = 0;
 	uint32_t output_end = 0;
+	uint32_t space_avail = 0;
 	odp_packet_seg_t cur_seg = ODP_PACKET_SEG_INVALID;
 	uint32_t sync;
 	odp_packet_data_range_t *res_data_range;
@@ -265,8 +266,9 @@ static int process_input(odp_comp_op_param_t *params,
 
 	/* start = params->output.pkt.data_range.offset; */
 	start = res_data_range->offset + res_data_range->length;
-	output_end = params->output.pkt.data_range.length -
+	space_avail = params->output.pkt.data_range.length -
 		     res_data_range->length;
+	output_end = space_avail + start;
 
 	do {
 		out_data =
@@ -281,6 +283,14 @@ static int process_input(odp_comp_op_param_t *params,
 				(strmp->avail_out));
 			result->err = ODP_COMP_ERR_OUT_OF_SPACE;
 			break;
+		}
+
+		if (out_len > space_avail) {
+			/* if segment length is greater than
+			 * user given available space, then
+			 * adjust output len
+			 */
+			 out_len = space_avail;
 		}
 
 		strmp->next_out = out_data;
@@ -303,13 +313,20 @@ static int process_input(odp_comp_op_param_t *params,
 
 		out_len = out_len - strmp->avail_out;
 		written += out_len;
-#ifdef ODP_COMP
+
+#ifdef DBG_COMP
 		dump(strmp->next_out, out_len);
 #endif
 		if (session->params.op == ODP_COMP_OP_DECOMPRESS)
 			compute_digest(session, out_data, out_len);
 
+		/* increase next offset by amount of data written into
+		 * output buffer and decrease available space by amount
+		 * of space consumed.
+		 */
 		start += out_len;
+		space_avail -= out_len;
+
 		ODP_DBG("ret %d,written %d\n", ret, out_len);
 
 		if (ret == Z_STREAM_END) {
@@ -424,7 +441,7 @@ static int do_deflate(odp_comp_op_param_t *params,
 
 		/* tracker for data consumed from input */
 		consumed += in_len;
-#ifdef ODP_COMP
+#ifdef DBG_COMP
 		/* dump(data,in_len); */
 #endif
 		strmp->next_in = data;
