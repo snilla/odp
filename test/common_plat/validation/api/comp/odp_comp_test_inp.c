@@ -4,8 +4,15 @@
  * SPDX-License-Identifier:	BSD-3-Clause
  */
 
-/* Test source for running compression/decompression tests
- * using deflate and zlib algorithms
+/* Validation test to validate ODP Compression API. 
+ * List of tests validates:
+ * 
+ * Functional testing - compress/decompress using zlib and 
+ * deflate
+ *
+ * Negative testing -  handling error cases (Currently marked
+ * Inactive).
+ *
  */
 #include "config.h"
 
