@@ -102,6 +102,7 @@ odpapiplatinclude_HEADERS = \
 		  $(srcdir)/include/odp/api/plat/cpumask_types.h \
 		  $(srcdir)/include/odp/api/plat/crypto_types.h \
 		  $(srcdir)/include/odp/api/plat/comp_types.h \
+		  $(srcdir)/include/odp/api/plat/comp_internal_api.h \
 		  $(srcdir)/include/odp/api/plat/event_types.h \
 		  $(srcdir)/include/odp/api/plat/init_types.h \
 		  $(srcdir)/include/odp/api/plat/ipsec_types.h \

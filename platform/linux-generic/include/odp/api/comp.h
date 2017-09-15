@@ -32,8 +32,13 @@ extern "C" {
  * @}
  */
 
-#include <odp/api/spec/comp.h>
+/** Spec file @ root is just informational
+    and for documentation purpose.
+*/
+/* #include <odp/api/spec/comp.h> */
 
+/** Include internal API file.*/
+#include <odp/api/plat/comp_internal_api.h>
 #ifdef __cplusplus
 }
 #endif

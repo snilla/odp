@@ -505,6 +505,8 @@ static int init_def(odp_comp_generic_session_t *session,
 	if (comp_ctxp == NULL)
 		return ODP_COMP_SES_CREATE_ERR_ENOMEM;
 
+	memset(comp_ctxp, 0, sizeof(comp_ctx_t));
+
 	streamp = (z_streamp)malloc(malloc_len);
 	if (streamp == NULL) {
 		free(comp_ctxp);

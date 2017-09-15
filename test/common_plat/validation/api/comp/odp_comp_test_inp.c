@@ -14,7 +14,7 @@
 #include "comp.h"
 
 struct suite_context_s {
-	odp_comp_op_mode_t op_mode;
+	odpx_comp_op_mode_t op_mode;
 	odp_pool_t pool;
 	odp_queue_t queue;
 };
@@ -30,12 +30,12 @@ static struct suite_context_s suite_context;
  * @retval ODP_TEST_ACTIVE when both algorithms are supported
  * @retval ODP_TEST_INACTIVE when either algorithm is not supported
  */
-static int check_comp_alg_support(odp_comp_alg_t comp,
-				  odp_comp_hash_alg_t hash)
+static int check_comp_alg_support(odpx_comp_alg_t comp,
+				  odpx_comp_hash_alg_t hash)
 {
-	odp_comp_capability_t capability;
+	odpx_comp_capability_t capability;
 
-	if (odp_comp_capability(&capability))
+	if (odpx_comp_capability(&capability))
 		return ODP_TEST_INACTIVE;
 
 	/* Compression algorithms */
@@ -82,19 +82,19 @@ static int check_comp_alg_support(odp_comp_alg_t comp,
 }
 
 static void ODP_UNUSED comp_decomp_alg_test(
-			odp_comp_alg_t comp_alg,
-			odp_comp_hash_alg_t hash_alg,
+			odpx_comp_alg_t comp_alg,
+			odpx_comp_hash_alg_t hash_alg,
 			const uint8_t *plaintext,
 			unsigned int plaintext_len)
 {
-	odp_comp_session_t comp_session, decomp_session;
-	odp_comp_capability_t capa;
-	odp_comp_ses_create_err_t status;
-	odp_comp_session_param_t ses_params;
-	odp_comp_op_param_t op_params;
+	odpx_comp_session_t comp_session, decomp_session;
+	odpx_comp_capability_t capa;
+	odpx_comp_ses_create_err_t status;
+	odpx_comp_session_param_t ses_params;
+	odpx_comp_op_param_t op_params;
 	odp_packet_t comp_inpkt, comp_outpkt;
 	odp_packet_t decomp_outpkt;
-	odp_comp_op_result_t comp_result, decomp_result;
+	odpx_comp_op_result_t comp_result, decomp_result;
 	odp_packet_seg_t seg;
 	odp_event_t comp_event, decomp_event;
 	odp_packet_t comp_evpkt, decomp_evpkt;
@@ -103,7 +103,7 @@ static void ODP_UNUSED comp_decomp_alg_test(
 	uint8_t *outdata;
 	int rc;
 
-	rc = odp_comp_capability(&capa);
+	rc = odpx_comp_capability(&capa);
 	CU_ASSERT(!rc);
 
 	if (comp_alg == ODP_COMP_ALG_NULL &&
@@ -131,26 +131,26 @@ static void ODP_UNUSED comp_decomp_alg_test(
 	CU_ASSERT(!rc);
 
 	/* Create a compression session */
-	odp_comp_session_param_init(&ses_params);
+	odpx_comp_session_param_init(&ses_params);
 	ses_params.op = ODP_COMP_OP_COMPRESS;
 	ses_params.comp_algo = comp_alg;
 	ses_params.hash_algo = hash_alg;
 	ses_params.compl_queue = suite_context.queue;
 	ses_params.mode = suite_context.op_mode;
 
-	rc = odp_comp_session_create(&ses_params, &comp_session, &status);
+	rc = odpx_comp_session_create(&ses_params, &comp_session, &status);
 	CU_ASSERT_FATAL(!rc);
 	CU_ASSERT(status == ODP_COMP_SES_CREATE_ERR_NONE);
-	CU_ASSERT(odp_comp_session_to_u64(comp_session) !=
-		odp_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
+	CU_ASSERT(odpx_comp_session_to_u64(comp_session) !=
+		odpx_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
 
 	/* Create a decompression session */
 	ses_params.op = ODP_COMP_OP_DECOMPRESS;
-	rc = odp_comp_session_create(&ses_params, &decomp_session, &status);
+	rc = odpx_comp_session_create(&ses_params, &decomp_session, &status);
 	CU_ASSERT_FATAL(!rc);
 	CU_ASSERT(status == ODP_COMP_SES_CREATE_ERR_NONE);
-	CU_ASSERT(odp_comp_session_to_u64(decomp_session) !=
-		  odp_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
+	CU_ASSERT(odpx_comp_session_to_u64(decomp_session) !=
+		  odpx_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
 
 	/* Allocate compression input packet */
 	comp_inpkt = odp_packet_alloc(suite_context.pool, plaintext_len);
@@ -179,12 +179,12 @@ static void ODP_UNUSED comp_decomp_alg_test(
 	op_params.session = comp_session;
 
 	if (suite_context.op_mode == ODP_COMP_SYNC) {
-		rc = odp_comp_compress(&op_params, &comp_result);
+		rc = odpx_comp_compress(&op_params, &comp_result);
 		if (rc < 0)
 			goto cleanup;
 		CU_ASSERT(comp_result.err == ODP_COMP_ERR_NONE);
 	} else {
-		rc = odp_comp_compress_enq(&op_params);
+		rc = odpx_comp_compress_enq(&op_params);
 		if (rc < 0)
 			goto cleanup;
 		/* Poll completion queue for results */
@@ -195,12 +195,12 @@ static void ODP_UNUSED comp_decomp_alg_test(
 		CU_ASSERT(ODP_EVENT_PACKET_COMP ==
 			  odp_event_subtype(comp_event));
 
-		comp_evpkt = odp_comp_packet_from_event(comp_event);
+		comp_evpkt = odpx_comp_packet_from_event(comp_event);
 		CU_ASSERT(ODP_EVENT_PACKET ==
 			odp_event_type(odp_packet_to_event(comp_evpkt)));
 		CU_ASSERT(ODP_EVENT_PACKET_COMP ==
 			odp_event_subtype(odp_packet_to_event(comp_evpkt)));
-		rc = odp_comp_result(comp_evpkt, &comp_result);
+		rc = odpx_comp_result(comp_evpkt, &comp_result);
 		CU_ASSERT(!rc);
 	}
 
@@ -217,11 +217,11 @@ static void ODP_UNUSED comp_decomp_alg_test(
 
 	do {
 		if (suite_context.op_mode == ODP_COMP_SYNC) {
-			rc = odp_comp_decomp(&op_params, &decomp_result);
+			rc = odpx_comp_decomp(&op_params, &decomp_result);
 			if (rc < 0)
 				goto cleanup;
 		} else {
-			rc = odp_comp_decomp_enq(&op_params);
+			rc = odpx_comp_decomp_enq(&op_params);
 			if (rc < 0)
 				goto cleanup;
 			/* Poll completion queue for results */
@@ -236,12 +236,12 @@ static void ODP_UNUSED comp_decomp_alg_test(
 				  odp_event_subtype(decomp_event));
 
 			decomp_evpkt =
-				odp_comp_packet_from_event(decomp_event);
+				odpx_comp_packet_from_event(decomp_event);
 			CU_ASSERT(ODP_EVENT_PACKET == odp_event_type(
 				  odp_packet_to_event(decomp_evpkt)));
 			CU_ASSERT(ODP_EVENT_PACKET_COMP ==
 			odp_event_subtype(odp_packet_to_event(decomp_evpkt)));
-			rc = odp_comp_result(decomp_evpkt, &decomp_result);
+			rc = odpx_comp_result(decomp_evpkt, &decomp_result);
 			CU_ASSERT(!rc);
 		}
 		if (decomp_result.err == ODP_COMP_ERR_OUT_OF_SPACE) {
@@ -278,29 +278,29 @@ cleanup:
 	odp_packet_free(comp_outpkt);
 	odp_packet_free(decomp_outpkt);
 
-	rc = odp_comp_session_destroy(comp_session);
+	rc = odpx_comp_session_destroy(comp_session);
 	CU_ASSERT(!rc);
-	rc = odp_comp_session_destroy(decomp_session);
+	rc = odpx_comp_session_destroy(decomp_session);
 	CU_ASSERT(!rc);
 }
 
-static void comp_alg_test(odp_comp_alg_t comp_alg,
-			  odp_comp_hash_alg_t hash_alg,
+static void comp_alg_test(odpx_comp_alg_t comp_alg,
+			  odpx_comp_hash_alg_t hash_alg,
 			  const uint8_t *plaintext,
 			  unsigned int plaintext_len)
 {
-	odp_comp_session_t comp_session;
-	odp_comp_capability_t capa;
-	odp_comp_ses_create_err_t status;
-	odp_comp_session_param_t ses_params;
-	odp_comp_op_param_t op_params;
+	odpx_comp_session_t comp_session;
+	odpx_comp_capability_t capa;
+	odpx_comp_ses_create_err_t status;
+	odpx_comp_session_param_t ses_params;
+	odpx_comp_op_param_t op_params;
 	odp_packet_t comp_inpkt, comp_outpkt;
-	odp_comp_op_result_t comp_result;
+	odpx_comp_op_result_t comp_result;
 	odp_event_t comp_event;
 	odp_packet_t comp_evpkt;
 	int rc;
 
-	rc = odp_comp_capability(&capa);
+	rc = odpx_comp_capability(&capa);
 	CU_ASSERT(!rc);
 
 	if (comp_alg == ODP_COMP_ALG_NULL &&
@@ -328,18 +328,18 @@ static void comp_alg_test(odp_comp_alg_t comp_alg,
 	CU_ASSERT(!rc);
 
 	/* Create a compression session */
-	odp_comp_session_param_init(&ses_params);
+	odpx_comp_session_param_init(&ses_params);
 	ses_params.op = ODP_COMP_OP_COMPRESS;
 	ses_params.comp_algo = comp_alg;
 	ses_params.hash_algo = hash_alg;
 	ses_params.compl_queue = suite_context.queue;
 	ses_params.mode = suite_context.op_mode;
 
-	rc = odp_comp_session_create(&ses_params, &comp_session, &status);
+	rc = odpx_comp_session_create(&ses_params, &comp_session, &status);
 	CU_ASSERT_FATAL(!rc);
 	CU_ASSERT(status == ODP_COMP_SES_CREATE_ERR_NONE);
-	CU_ASSERT(odp_comp_session_to_u64(comp_session) !=
-		odp_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
+	CU_ASSERT(odpx_comp_session_to_u64(comp_session) !=
+		odpx_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
 
 	/* Allocate compression input packet */
 	comp_inpkt = odp_packet_alloc(suite_context.pool, plaintext_len);
@@ -364,12 +364,12 @@ static void comp_alg_test(odp_comp_alg_t comp_alg,
 	op_params.session = comp_session;
 
 	if (suite_context.op_mode == ODP_COMP_SYNC) {
-		rc = odp_comp_compress(&op_params, &comp_result);
+		rc = odpx_comp_compress(&op_params, &comp_result);
 		if (rc < 0)
 			goto cleanup;
 		CU_ASSERT(comp_result.err == ODP_COMP_ERR_NONE);
 	} else {
-		rc = odp_comp_compress_enq(&op_params);
+		rc = odpx_comp_compress_enq(&op_params);
 		if (rc < 0)
 			goto cleanup;
 		/* Poll completion queue for results */
@@ -380,12 +380,12 @@ static void comp_alg_test(odp_comp_alg_t comp_alg,
 		CU_ASSERT(ODP_EVENT_PACKET_COMP ==
 				odp_event_subtype(comp_event));
 
-		comp_evpkt = odp_comp_packet_from_event(comp_event);
+		comp_evpkt = odpx_comp_packet_from_event(comp_event);
 		CU_ASSERT(ODP_EVENT_PACKET ==
 			odp_event_type(odp_packet_to_event(comp_evpkt)));
 		CU_ASSERT(ODP_EVENT_PACKET_COMP ==
 			odp_event_subtype(odp_packet_to_event(comp_evpkt)));
-		rc = odp_comp_result(comp_evpkt, &comp_result);
+		rc = odpx_comp_result(comp_evpkt, &comp_result);
 		CU_ASSERT(!rc);
 	}
 
@@ -393,24 +393,24 @@ cleanup:
 	odp_packet_free(comp_inpkt);
 	odp_packet_free(comp_outpkt);
 
-	rc = odp_comp_session_destroy(comp_session);
+	rc = odpx_comp_session_destroy(comp_session);
 	CU_ASSERT(!rc);
 }
 
-static void decomp_alg_test(odp_comp_alg_t comp_alg,
-			    odp_comp_hash_alg_t hash_alg,
+static void decomp_alg_test(odpx_comp_alg_t comp_alg,
+			    odpx_comp_hash_alg_t hash_alg,
 			    const uint8_t *comptext,
 			    unsigned int comptext_len,
 			    const uint8_t *plaintext,
 			    unsigned int plaintext_len)
 {
-	odp_comp_session_t decomp_session;
-	odp_comp_capability_t capa;
-	odp_comp_ses_create_err_t status;
-	odp_comp_session_param_t ses_params;
-	odp_comp_op_param_t op_params;
+	odpx_comp_session_t decomp_session;
+	odpx_comp_capability_t capa;
+	odpx_comp_ses_create_err_t status;
+	odpx_comp_session_param_t ses_params;
+	odpx_comp_op_param_t op_params;
 	odp_packet_t decomp_inpkt, decomp_outpkt;
-	odp_comp_op_result_t decomp_result;
+	odpx_comp_op_result_t decomp_result;
 	odp_packet_seg_t seg;
 	odp_packet_t decomp_evpkt;
 	odp_event_t decomp_event;
@@ -419,7 +419,7 @@ static void decomp_alg_test(odp_comp_alg_t comp_alg,
 	uint8_t *outdata;
 	int rc;
 
-	rc = odp_comp_capability(&capa);
+	rc = odpx_comp_capability(&capa);
 	CU_ASSERT(!rc);
 
 	if (comp_alg == ODP_COMP_ALG_NULL &&
@@ -447,17 +447,17 @@ static void decomp_alg_test(odp_comp_alg_t comp_alg,
 	CU_ASSERT(!rc);
 
 	/* Create a decompression session */
-	odp_comp_session_param_init(&ses_params);
+	odpx_comp_session_param_init(&ses_params);
 	ses_params.op = ODP_COMP_OP_DECOMPRESS;
 	ses_params.comp_algo = comp_alg;
 	ses_params.hash_algo = hash_alg;
 	ses_params.compl_queue = suite_context.queue;
 	ses_params.mode = suite_context.op_mode;
-	rc = odp_comp_session_create(&ses_params, &decomp_session, &status);
+	rc = odpx_comp_session_create(&ses_params, &decomp_session, &status);
 	CU_ASSERT_FATAL(!rc);
 	CU_ASSERT(status == ODP_COMP_SES_CREATE_ERR_NONE);
-	CU_ASSERT(odp_comp_session_to_u64(decomp_session) !=
-		  odp_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
+	CU_ASSERT(odpx_comp_session_to_u64(decomp_session) !=
+		  odpx_comp_session_to_u64(ODP_COMP_SESSION_INVALID));
 
 	/* Allocate decompression input packet */
 	decomp_inpkt = odp_packet_alloc(suite_context.pool, plaintext_len);
@@ -485,11 +485,11 @@ static void decomp_alg_test(odp_comp_alg_t comp_alg,
 
 	do {
 		if (suite_context.op_mode == ODP_COMP_SYNC) {
-			rc = odp_comp_decomp(&op_params, &decomp_result);
+			rc = odpx_comp_decomp(&op_params, &decomp_result);
 			if (rc < 0)
 				goto cleanup;
 		} else {
-			rc = odp_comp_decomp_enq(&op_params);
+			rc = odpx_comp_decomp_enq(&op_params);
 			if (rc < 0)
 				goto cleanup;
 			/* Poll completion queue for results */
@@ -504,12 +504,12 @@ static void decomp_alg_test(odp_comp_alg_t comp_alg,
 				odp_event_subtype(decomp_event));
 
 			decomp_evpkt =
-				odp_comp_packet_from_event(decomp_event);
+				odpx_comp_packet_from_event(decomp_event);
 			CU_ASSERT(ODP_EVENT_PACKET ==
 			odp_event_type(odp_packet_to_event(decomp_evpkt)));
 			CU_ASSERT(ODP_EVENT_PACKET_COMP ==
 			odp_event_subtype(odp_packet_to_event(decomp_evpkt)));
-			rc = odp_comp_result(decomp_evpkt, &decomp_result);
+			rc = odpx_comp_result(decomp_evpkt, &decomp_result);
 			CU_ASSERT(!rc);
 		}
 		if (decomp_result.err == ODP_COMP_ERR_OUT_OF_SPACE) {
@@ -547,7 +547,7 @@ cleanup:
 	odp_packet_free(decomp_inpkt);
 	odp_packet_free(decomp_outpkt);
 
-	rc = odp_comp_session_destroy(decomp_session);
+	rc = odpx_comp_session_destroy(decomp_session);
 	CU_ASSERT(!rc);
 }
 

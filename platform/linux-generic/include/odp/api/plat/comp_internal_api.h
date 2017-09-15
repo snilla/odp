@@ -21,8 +21,8 @@
 extern "C" {
 #endif
 
-/** @defgroup odpx_compression ODP COMP
- *  ODP Compression is an API set to do compression+hash or decompression+hash
+/** @defgroup odpx_compression ODPx COMP
+ *  ODPx Compression is an API set to do compression+hash or decompression+hash
  *  operations on data. Hash is calculated on plaintext.
  *
  *  if opcode = ODP_COMP_COMPRESS, then it will apply hash and then compress,
@@ -40,7 +40,7 @@ extern "C" {
  */
 
 /**
- * @typedef odpx_comp_session_t
+ * @typedef odp_comp_session_t
  * Compression/Decompression session handle
  */
 
@@ -52,7 +52,9 @@ typedef enum {
 	ODP_COMP_SYNC,
 	/** Asynchronous, return results via event queue */
 	ODP_COMP_ASYNC
-} odpx_comp_op_mode_t;
+} odp_comp_op_mode_t;
+
+#define odpx_comp_op_mode_t odp_comp_op_mode_t
 
 /**
  * Comp API operation type.
@@ -63,7 +65,9 @@ typedef enum {
 	ODP_COMP_OP_COMPRESS,
 	/** Decompress */
 	ODP_COMP_OP_DECOMPRESS
-} odpx_comp_op_t;
+} odp_comp_op_t;
+
+#define odpx_comp_op_t      odp_comp_op_t
 
 /**
  * Comp API hash algorithm
@@ -78,7 +82,9 @@ typedef enum {
 	 * 256-bit digest length.
 	 */
 	ODP_COMP_HASH_ALG_SHA256
-} odpx_comp_hash_alg_t;
+} odp_comp_hash_alg_t;
+
+#define odpx_comp_hash_alg_t odp_comp_hash_alg_t
 
 /**
  * Comp API compression algorithm
@@ -97,7 +103,9 @@ typedef enum {
 	ODP_COMP_ALG_ZLIB,
 	/** LZS */
 	ODP_COMP_ALG_LZS
-} odpx_comp_alg_t;
+} odp_comp_alg_t;
+
+#define odpx_comp_alg_t odp_comp_alg_t
 
 /**
  * Comp API session creation return code
@@ -114,7 +122,10 @@ typedef enum {
 	ODP_COMP_SES_CREATE_ERR_INV_HASH,
 	/** Creation failed,requested configuration not supported*/
 	ODP_COMP_SES_CREATE_ERR_NOT_SUPPORTED
-} odpx_comp_ses_create_err_t;
+} odp_comp_ses_create_err_t;
+
+#define odpx_comp_ses_create_err_t odp_comp_ses_create_err_t
+
 
 /**
  * Comp API operation return codes
@@ -129,7 +140,7 @@ typedef enum {
 	 * Implementation should maintain context of in-progress operation and
 	 * application should call packet processing API again with valid
 	 * output buffer but no other alteration to operation params
-	 * (odpx_comp_op_param_t).
+	 * (odp_comp_op_param_t).
 	 *
 	 * if using async mode, application should either make sure to
 	 * provide sufficient output buffer size OR maintain relevant
@@ -150,7 +161,9 @@ typedef enum {
 	ODP_COMP_ERR_NOT_SUPPORTED,
 	/** Error if session is invalid. */
 	ODP_COMP_ERR_INV_SESS
-} odpx_comp_err_t;
+} odp_comp_err_t;
+
+#define odpx_comp_err_t odp_comp_err_t
 
 /**
  * Comp API enumeration for preferred compression level/speed. Applicable
@@ -174,7 +187,9 @@ typedef enum {
 	ODP_COMP_LEVEL_MIN,
 	/** Maximum compression (slowest in speed) */
 	ODP_COMP_LEVEL_MAX,
-} odpx_comp_level_t;
+} odp_comp_level_t;
+
+#define odpx_comp_level_t odp_comp_level_t
 
 /**
  * Comp API enumeration for huffman encoding. Valid for compression operation.
@@ -187,13 +202,15 @@ typedef enum {
 	ODP_COMP_HUFFMAN_CODE_FIXED,
 	/** use dynamic huffman coding */
 	ODP_COMP_HUFFMAN_CODE_DYNAMIC,
-} odpx_comp_huffman_code_t;
+} odp_comp_huffman_code_t;
+
+#define odpx_comp_huffman_code_t odp_comp_huffman_code_t
 
 /**
  * Hash algorithms in a bit field structure
  *
  */
-typedef union odpx_comp_hash_algos_t {
+typedef union odp_comp_hash_algos_t {
 	/** hash algorithms */
 	struct {
 		/** ODP_COMP_HASH_ALG_SHA1 */
@@ -210,13 +227,15 @@ typedef union odpx_comp_hash_algos_t {
 	 * operations over the entire structure.
 	 */
 	uint32_t all_bits;
-} odpx_comp_hash_algos_t;
+} odp_comp_hash_algos_t;
+
+#define odpx_comp_hash_algos_t odp_comp_hash_algos_t
 
 /**
  * Comp algorithms in a bit field structure
  *
  */
-typedef union odpx_comp_algos_t {
+typedef union odp_comp_algos_t {
 	/** Compression algorithms */
 	struct {
 		/** ODP_COMP_ALG_NULL */
@@ -237,49 +256,55 @@ typedef union odpx_comp_algos_t {
 	 * operations over the entire structure.
 	 */
 	uint32_t all_bits;
-} odpx_comp_algos_t;
+} odp_comp_algos_t;
+
+#define odpx_comp_algos_t odp_comp_algos_t
 
 /**
  * Compression Interface Capabilities
  *
  */
-typedef struct odpx_comp_capability_t {
+typedef struct odp_comp_capability_t {
 	/** Maximum number of  sessions */
 	uint32_t max_sessions;
 
 	/** Supported compression algorithms */
-	odpx_comp_algos_t comp_algos;
+	odp_comp_algos_t comp_algos;
 
 	/** Supported hash algorithms. */
-	odpx_comp_hash_algos_t hash_algos;
+	odp_comp_hash_algos_t hash_algos;
 
 	/** Support type for synchronous operation mode (ODP_COMP_SYNC).
-	 *  User should set odpx_comp_session_param_t:mode based on
+	 *  User should set odp_comp_session_param_t:mode based on
 	 *  support level as indicated by this param.
 	 */
 	odp_support_t sync;
 
 	/** Support type for asynchronous operation mode (ODP_COMP_ASYNC).
-	 *  User should set odpx_comp_session_param_t:mode param based on
+	 *  User should set odp_comp_session_param_t:mode param based on
 	 *  support level as indicated by this param.
 	 */
 	odp_support_t async;
-} odpx_comp_capability_t;
+} odp_comp_capability_t;
+
+#define odpx_comp_capability_t odp_comp_capability_t
 
 /**
  * Hash algorithm capabilities
  *
  */
-typedef struct odpx_comp_hash_alg_capability_t {
+typedef struct odp_comp_hash_alg_capability_t {
 	/** Digest length in bytes */
 	uint32_t digest_len;
-} odpx_comp_hash_alg_capability_t;
+} odp_comp_hash_alg_capability_t;
+
+#define odpx_comp_hash_alg_capability_t odp_comp_hash_alg_capability_t
 
 /**
  * Compression algorithm capabilities structure for each algorithm.
  *
  */
-typedef struct odpx_comp_alg_capability_t {
+typedef struct odp_comp_alg_capability_t {
 	/** Enumeration indicating algorithm support for dictionary load */
 	odp_support_t support_dict;
 
@@ -291,7 +316,7 @@ typedef struct odpx_comp_alg_capability_t {
 	 *  Implementation use dictionary of length less than or equal to value
 	 *  indicated by dict_len. if set to 0 and if support_dict ==
 	 *  ODP_SUPPORT_YES, then implementation will use dictionary length
-	 *  less than or equal to user input length in odpx_comp_set_dict()
+	 *  less than or equal to user input length in odp_comp_set_dict()
 	 *  and update used dictionary length at output of the call.
 	 *
 	 */
@@ -319,58 +344,68 @@ typedef struct odpx_comp_alg_capability_t {
 	uint32_t max_level;
 
 	/* Supported hash algorithms */
-	odpx_comp_hash_algos_t hash_algo;
-} odpx_comp_alg_capability_t;
+	odp_comp_hash_algos_t hash_algo;
+} odp_comp_alg_capability_t;
+
+#define odpx_comp_alg_capability_t odp_comp_alg_capability_t
 
 /**
  * Comp API dictionary type
  * Consists of pointer to byte buffer. length of dictionary
  * indicated by length parameter.
  */
-typedef struct odpx_comp_dict_t {
+typedef struct odp_comp_dict_t {
 	/** pointer to byte array */
 	uint8_t *buf;
 	/** length of the dictionary. */
 	uint32_t len;
-} odpx_comp_dict_t;
+} odp_comp_dict_t;
+
+#define odpx_comp_dict_t odp_comp_dict_t
 
 /**
  * Comp API deflate algorithm specific parameters
  * Also initialized by other deflate based algorithms , ex. ZLIB
  *
  */
-typedef struct odpx_comp_alg_def_param_t {
+typedef struct odp_comp_alg_def_param_t {
 	/** compression level where
 	 * ODP_COMP_LEVEL_MIN <= level <= ODP_COMP_LEVEL_MAX
 	 */
-	odpx_comp_level_t level;
+	odp_comp_level_t level;
 	/** huffman code to use */
-	odpx_comp_huffman_code_t comp_code;
-} odpx_comp_alg_def_param_t;
+	odp_comp_huffman_code_t comp_code;
+} odp_comp_alg_def_param_t;
+
+#define odpx_comp_alg_def_param_t odp_comp_alg_def_param_t
 
 /**
  * Comp API zlib algorithm specific parameters
  *
  */
-typedef struct odpx_comp_alg_zlib_param_t {
-	odpx_comp_alg_def_param_t def;
-} odpx_comp_alg_zlib_param_t;
+typedef struct odp_comp_alg_zlib_param_t {
+	odp_comp_alg_def_param_t def;
+} odp_comp_alg_zlib_param_t;
+
+#define odpx_comp_alg_zlib_param_t odp_comp_alg_zlib_param_t
 
 /**
  * Comp API algorithm specific parameters
  *
  */
-typedef union odpx_comp_alg_param_t {
+typedef union odp_comp_alg_param_t {
 	/** deflate algo params */
-	odpx_comp_alg_def_param_t deflate;
-	odpx_comp_alg_zlib_param_t zlib;
-} odpx_comp_alg_param_t;
+	odp_comp_alg_def_param_t deflate;
+	odp_comp_alg_zlib_param_t zlib;
+} odp_comp_alg_param_t;
+
+#define odpx_comp_alg_param_t odp_comp_alg_param_t
 
 /**
  * Comp API data range specifier
  *
  */
-typedef union odpx_comp_data_t {
+typedef union odp_comp_data_t {
 	struct {
 		/** packet */
 		odp_packet_t packet;
@@ -378,47 +413,49 @@ typedef union odpx_comp_data_t {
 		/** packet data range to operate on  */
 		odp_packet_data_range_t data_range;
 	} pkt;
-} odpx_comp_data_t;
+} odp_comp_data_t;
+
+#define odpx_comp_data_t odp_comp_data_t
 
  /**
  * Comp API session creation parameters
  *
  */
-typedef struct odpx_comp_session_param_t {
+typedef struct odp_comp_session_param_t {
 	/** Compress vs. Decompress operation */
-	odpx_comp_op_t op;
+	odp_comp_op_t op;
 
 	/** Sync vs Async mode
 	 *
-	 * When mode = ODP_COMP_SYNC, odpx_comp_compress()/odpx_comp_decomp()
+	 * When mode = ODP_COMP_SYNC, odp_comp_compress()/odp_comp_decomp()
 	 * should be called.
 	 *
-	 * When mode = ODP_COMP_ASYNC, odpx_comp_compress_enq()/
-	 * odpx_comp_decomp_enq() should be called.
+	 * When mode = ODP_COMP_ASYNC, odp_comp_compress_enq()/
+	 * odp_comp_decomp_enq() should be called.
 	 *
-	 * Use odpx_comp_capability() for supported mode.
+	 * Use odp_comp_capability() for supported mode.
 	 *
 	 */
-	odpx_comp_op_mode_t mode;
+	odp_comp_op_mode_t mode;
 
 	/** Compression algorithm
 	 *
-	 *  Use odpx_comp_capability() for supported algorithms.
+	 *  Use odp_comp_capability() for supported algorithms.
 	 */
-	odpx_comp_alg_t comp_algo;
+	odp_comp_alg_t comp_algo;
 
 	/** Hash algorithm
 	 *
-	 *  Use odpx_comp_alg_capability() for supported hash algo for
+	 *  Use odp_comp_alg_capability() for supported hash algo for
 	 *  compression algo given as comp_alg. Implementation should not
 	 *  support hash only operation on data. output should always contain
 	 *  data + hash.
 	 *
 	 */
-	odpx_comp_hash_alg_t hash_algo;
+	odp_comp_hash_alg_t hash_algo;
 
 	/** parameters specific to compression */
-	odpx_comp_alg_param_t algo_param;
+	odp_comp_alg_param_t algo_param;
 
 	/** Async mode completion event queue
 	 *
@@ -436,16 +473,18 @@ typedef struct odpx_comp_session_param_t {
 	 *
 	 */
 	odp_queue_t compl_queue;
-} odpx_comp_session_param_t;
+} odp_comp_session_param_t;
+
+#define odpx_comp_session_param_t odp_comp_session_param_t
 
 /**
  * Comp API operation parameters.
  * Called to process each data unit.
  *
  */
-typedef struct odpx_comp_op_param_t {
+typedef struct odp_comp_op_param_t {
 	/** Session handle from creation */
-	odpx_comp_session_t session;
+	odp_comp_session_t session;
 
 	/** User context */
 	void *ctx;
@@ -471,14 +510,14 @@ typedef struct odpx_comp_op_param_t {
 	 * For compression + hash, digest will be available after
 	 * last chunk is processed completely. In case of
 	 * ODP_COMP_ERR_OUT_OF_SPACE, application should keep on calling
-	 * odpx_comp_xxx() API with more output buffer unless call returns
+	 * odp_comp_xxx() API with more output buffer unless call returns
 	 * with ODP_COMP_ERR_NONE or other failure code except
 	 *  ODP_COMP_ERR_OUT_OF_SPACE.
 	 */
 	odp_bool_t last;
 
 	/** Input data */
-	odpx_comp_data_t input;
+	odp_comp_data_t input;
 
 	/** placeholder for output data.
 	 *
@@ -488,29 +527,33 @@ typedef struct odpx_comp_op_param_t {
 	 * to store digest.
 	 *
 	 */
-	odpx_comp_data_t output;
-} odpx_comp_op_param_t;
+	odp_comp_data_t output;
+} odp_comp_op_param_t;
+
+#define odpx_comp_op_param_t odp_comp_op_param_t
 
 /**
  * Comp API per operation result
  *
  */
-typedef struct odpx_comp_op_result_t {
+typedef struct odp_comp_op_result_t {
 	/** User context from request */
 	void *ctx;
 
 	/** Operation Return Code */
-	odpx_comp_err_t err;
+	odp_comp_err_t err;
 
-	/** Pointer to output.Valid when odpx_comp_err_t is
+	/** Pointer to output.Valid when odp_comp_err_t is
 	 * ODP_COMP_ERR_NONE or ODP_COMP_ERR_OUT_OF_SPACE
 	 *
 	 * Contain data after compression/decompression operation,
 	 * or data + digest for compression/decompression + hash operation.
 	 *
 	 */
-	odpx_comp_data_t output;
-} odpx_comp_op_result_t;
+	odp_comp_data_t output;
+} odp_comp_op_result_t;
+
+#define odpx_comp_op_result_t odp_comp_op_result_t
 
 /**
  * Query comp capabilities
@@ -522,8 +565,9 @@ typedef struct odpx_comp_op_result_t {
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_capability(odpx_comp_capability_t *capa);
+int odp_comp_capability(odp_comp_capability_t *capa);
 
+#define odpx_comp_capability odp_comp_capability
 /**
  * Query supported compression algorithm capabilities
  *
@@ -538,9 +582,10 @@ int odpx_comp_capability(odpx_comp_capability_t *capa);
  *         may call the function again with a larger value of 'num'.
  * @retval <0 on failure
  */
-int odpx_comp_alg_capability(odpx_comp_alg_t comp,
-			     odpx_comp_alg_capability_t capa[], int num);
+int odp_comp_alg_capability(odp_comp_alg_t comp,
+			    odp_comp_alg_capability_t capa[], int num);
 
+#define odpx_comp_alg_capability odp_comp_alg_capability
 /**
  * Query supported hash algorithm capabilities
  *
@@ -555,25 +600,25 @@ int odpx_comp_alg_capability(odpx_comp_alg_t comp,
  *	    may call the function again with a larger value of 'num'.
  * @retval <0 on failure
  */
-int odpx_comp_hash_alg_capability(odpx_comp_hash_alg_t hash,
-				  odpx_comp_hash_alg_capability_t capa[],
-				  int num);
-
+int odp_comp_hash_alg_capability(odp_comp_hash_alg_t hash,
+				 odp_comp_hash_alg_capability_t capa[],
+				 int num);
+#define odpx_comp_hash_alg_capability odp_comp_hash_alg_capability
 /**
  * Initialize comp session parameters
  *
- * Initialize an odpx_comp_session_param_t to its default values for
+ * Initialize an odp_comp_session_param_t to its default values for
  * all fields.
  *
- * @param param   Pointer to odpx_comp_session_param_t to be initialized
+ * @param param   Pointer to odp_comp_session_param_t to be initialized
  */
-void odpx_comp_session_param_init(odpx_comp_session_param_t *param);
-
+void odp_comp_session_param_init(odp_comp_session_param_t *param);
+#define odpx_comp_session_param_init odp_comp_session_param_init
 /**
  * Compression session creation
  *
  * Create a comp session according to the session parameters. Use
- * odpx_comp_session_param_init() to initialize parameters into their
+ * odp_comp_session_param_init() to initialize parameters into their
  * default values.
  *
  * @param param             Session parameters
@@ -583,10 +628,10 @@ void odpx_comp_session_param_init(odpx_comp_session_param_t *param);
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_session_create(odpx_comp_session_param_t *param,
-			     odpx_comp_session_t *session,
-			     odpx_comp_ses_create_err_t *status);
-
+int odp_comp_session_create(odp_comp_session_param_t *param,
+			    odp_comp_session_t *session,
+			    odp_comp_ses_create_err_t *status);
+#define odpx_comp_session_create odp_comp_session_create
 /**
  * Comp session destroy
  *
@@ -598,8 +643,8 @@ int odpx_comp_session_create(odpx_comp_session_param_t *param,
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_session_destroy(odpx_comp_session_t session);
-
+int odp_comp_session_destroy(odp_comp_session_t session);
+#define odpx_comp_session_destroy odp_comp_session_destroy
 /**
  * Comp set dictionary
  *
@@ -615,12 +660,12 @@ int odpx_comp_session_destroy(odpx_comp_session_t session);
  * @retval <0 on failure
  *
  * @note:
- * Application should call odpx_comp_alg_capability() to query 'support_dict'
+ * Application should call odp_comp_alg_capability() to query 'support_dict'
  * before making call to this API.
  */
-int odpx_comp_set_dict(odpx_comp_session_t session,
-		       const odpx_comp_dict_t *dict);
-
+int odp_comp_set_dict(odp_comp_session_t session,
+		      const odp_comp_dict_t *dict);
+#define odpx_comp_set_dict odp_comp_set_dict
 /**
  * Comp compress data in synchronous mode
  *
@@ -637,7 +682,7 @@ int odpx_comp_set_dict(odpx_comp_session_t session,
  * for compression + hash, call returns with hash appended to the end of
  * last processed chunk of data.
  * User should compute processed data len = total output len - digest_len, where
- * digest_len queried through odpx_comp_hash_alg_capability().
+ * digest_len queried through odp_comp_hash_alg_capability().
  *
  * @param param[in]         Operation parameters.
  * @param result[out]       Result of operation.
@@ -645,9 +690,9 @@ int odpx_comp_set_dict(odpx_comp_session_t session,
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_compress(odpx_comp_op_param_t   *param,
-		       odpx_comp_op_result_t  *result);
-
+int odp_comp_compress(odp_comp_op_param_t   *param,
+		      odp_comp_op_result_t  *result);
+#define odpx_comp_compress odp_comp_compress
 /**
  * Comp compress data in asynchronous mode.
  *
@@ -661,7 +706,7 @@ int odpx_comp_compress(odpx_comp_op_param_t   *param,
  * For compression + hash, call returns with hash appended to the end of
  * last processed chunk of data.
  * User should compute processed data len = total output len - digest_len, where
- * digest_len queried through odpx_comp_hash_alg_capability().
+ * digest_len queried through odp_comp_hash_alg_capability().
  *
  * If operation updates result structure with status
  * ODP_COMP_ERR_OUT_OF_SPACE then application
@@ -678,8 +723,8 @@ int odpx_comp_compress(odpx_comp_op_param_t   *param,
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_compress_enq(odpx_comp_op_param_t *param);
-
+int odp_comp_compress_enq(odp_comp_op_param_t *param);
+#define odpx_comp_compress_enq odp_comp_compress_enq
 /**
  * Comp decompress data in synchronous mode
  *
@@ -696,7 +741,7 @@ int odpx_comp_compress_enq(odpx_comp_op_param_t *param);
  * for decompression + hash, call returns with hash appended to the end of
  * last processed chunk of data.User should compute processed data len =
  * total output len - digest_len, where digest_len queried through
- * odpx_comp_hash_alg_capability().
+ * odp_comp_hash_alg_capability().
  *
  * @param param[in]          Operation parameters.
  * @param result[out]        Result of operation.
@@ -704,9 +749,9 @@ int odpx_comp_compress_enq(odpx_comp_op_param_t *param);
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_decomp(odpx_comp_op_param_t   *param,
-		     odpx_comp_op_result_t  *result);
-
+int odp_comp_decomp(odp_comp_op_param_t   *param,
+		    odp_comp_op_result_t  *result);
+#define odpx_comp_decomp odp_comp_decomp
 /**
  * Comp decompress data in asynchronous mode.
  *
@@ -721,7 +766,7 @@ int odpx_comp_decomp(odpx_comp_op_param_t   *param,
  * last processed chunk of data.
  *
  * User should compute processed data len = total output length - digest_len,
- * where digest_len queried through odpx_comp_hash_alg_capability().
+ * where digest_len queried through odp_comp_hash_alg_capability().
  *
  * If operation updates result structure with status
  * ODP_COMP_ERR_OUT_OF_SPACE then application
@@ -738,48 +783,48 @@ int odpx_comp_decomp(odpx_comp_op_param_t   *param,
  * @retval 0 on success
  * @retval <0 on failure
  */
-int odpx_comp_decomp_enq(odpx_comp_op_param_t *param);
-
+int odp_comp_decomp_enq(odp_comp_op_param_t *param);
+#define odpx_comp_decomp_enq odp_comp_decomp_enq
 /**
  * Convert processed packet event to packet handle
  *
  * Get packet handle corresponding to processed packet event. Event subtype
  * must be ODP_EVENT_PACKET_COMP. compression/decompression operation
- * results can be examined with odpx_comp_result().
+ * results can be examined with odp_comp_result().
  *
  * @param ev	    Event handle
  *
  * @return Valid Packet handle on success,
  *	    ODP_PACKET_INVALID on failure
  *
- * @see odp_event_subtype(), odpx_comp_result()
+ * @see odp_event_subtype(), odp_comp_result()
  *
  * @ Example Usage
  * odp_event_t ev = odp_queue_deque(comple_q);
  * odp_event_subtype_t subtype;
  * if(ODP_PACKET_EVENT == odp_event_types(ev, &subtype)) {
  *  if(subtype == ODP_PACKET_EVENT_COMP) {
- *   pkt = odpx_comp_packet_from_event(ev);
- *   odpx_comp_op_result_t res;
- *   odpx_comp_result(packet, &res);
+ *   pkt = odp_comp_packet_from_event(ev);
+ *   odp_comp_op_result_t res;
+ *   odp_comp_result(packet, &res);
  *  }
  * }
 */
-odp_packet_t odpx_comp_packet_from_event(odp_event_t event);
-
+odp_packet_t odp_comp_packet_from_event(odp_event_t event);
+#define odpx_comp_packet_from_event odp_comp_packet_from_event
 /**
  * Convert processed packet handle to event
  *
  * The packet handle must be an output of an compression/decompression
  * operation.
  *
- * @param pkt	    Packet handle from odpx_comp_compress_enq()/
- *		    odpx_comp_decomp_enq()
+ * @param pkt	    Packet handle from odp_comp_compress_enq()/
+ *		    odp_comp_decomp_enq()
  *
  * @return Event handle
  */
-odp_event_t odpx_comp_packet_to_event(odp_packet_t pkt);
-
+odp_event_t odp_comp_packet_to_event(odp_packet_t pkt);
+#define odpx_comp_packet_to_event odp_comp_packet_to_event
 /**
  * Get compression/decompression operation results from an processed packet.
  *
@@ -795,25 +840,25 @@ odp_event_t odpx_comp_packet_to_event(odp_packet_t pkt);
  * @retval  0	   On success
  * @retval <0	   On failure
  *
- * @see odpx_comp_compress_enq(), odpx_comp_decomp_enq(),
-*	  odpx_comp_packet_from_event()
+ * @see odp_comp_compress_enq(), odp_comp_decomp_enq(),
+*	  odp_comp_packet_from_event()
  */
-int odpx_comp_result(odp_packet_t packet,
-		     odpx_comp_op_result_t *result);
-
+int odp_comp_result(odp_packet_t packet,
+		    odp_comp_op_result_t *result);
+#define odpx_comp_result odp_comp_result
 /**
- * Get printable value for an odpx_comp_session_t
+ * Get printable value for an odp_comp_session_t
  *
- * @param hdl  odpx_comp_session_t handle to be printed
+ * @param hdl  odp_comp_session_t handle to be printed
  * @return     uint64_t value that can be used to print/display this
  *             handle
  *
  * @note This routine is intended to be used for diagnostic purposes
  * to enable applications to generate a printable value that represents
- * an odpx_comp_session_t handle.
+ * an odp_comp_session_t handle.
  */
-uint64_t odpx_comp_session_to_u64(odpx_comp_session_t hdl);
-
+uint64_t odp_comp_session_to_u64(odp_comp_session_t hdl);
+#define odpx_comp_session_to_u64 odp_comp_session_to_u64
 /**
  * @}
  */
