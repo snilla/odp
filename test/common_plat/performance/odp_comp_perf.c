@@ -4,6 +4,25 @@
  * SPDX-License-Identifier:	BSD-3-Clause
  */
 
+/* This file measures performance for odp compression and decompression API's.
+ * It uses level as best speed i.e. minimum compression and performs stateless
+ * compression/decompression operation.
+ *
+ * Test performs compression followed by decompression on input
+ * test vectors using zlib and deflate algorithm.
+ *
+ * Data type used are
+ *
+ * 2x for average case, and
+ * Fixed pattern for best case
+ *
+ * Run "./odp_comp_perf -h" for more help.
+ *
+ * Note:
+ * Test case used unsegmented input packet and do not handle out of space
+ * error.
+ */
+
 #include "config.h"
 
 #ifndef _GNU_SOURCE
@@ -1073,16 +1092,13 @@ static uint8_t plaintext[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xea, 0x48
 };
 
-/** Length of the pre-compressed data using deflate algorithm */
-#define COMP_DEFLATE_SIZE 3769
-
 /**
  * Structure that holds template for session create call
  * for different algorithms supported by test
  */
 typedef struct {
 	const char *name;		      /**< Algorithm name */
-	odp_comp_session_param_t session; /**< Prefilled comp session params */
+	odpx_comp_session_param_t session; /**< Prefilled session params */
 } comp_alg_config_t;
 
 /**
@@ -1092,25 +1108,23 @@ typedef struct {
 	/**
 	 * Number of iterations to repeat comp/decomp operation to get good
 	 * average number. Specified through -i or --iterations option.
-	 * Default is 10000.
+	 * Default is 1.
 	 */
 	int iteration_count;
 
 	/**
-	 * Pointer to selected algorithm to test. If NULL all available (deflate
-	 * and zlib) alogorthims are tested. Name of algorithm is passed through
-	 * -a or --algorithm option.
+	 * Pointer to selected algorithm to test. If NULL, deflate alogorthim is
+	 * tested by default. Name of algorithm is passed through -a or
+	 * --algorithm option.
 	 */
 	comp_alg_config_t *alg_config;
 
 	/**
-	 * Use sync or async mode to get result from comp operation. For output
-	 * result, queue will be polled. Specified through -p (poll) argument.
+	 * Use sync or async mode to get result from comp/decomp operation. For
+	 * output, queue will be polled. Specified through -p (poll) argument.
+	 * By default, sync mode will be used.
 	 */
 	int poll;
-
-	/** Operation: comp or decomp, only comp supported right now */
-	odp_comp_alg_t op;
 
 } comp_args_t;
 
@@ -1119,24 +1133,12 @@ typedef struct {
  * for given payload size.
  */
 typedef struct {
-	/**
-	 * Elapsed time for one comp/decomp operation.
-	 */
-	double elapsed;
+	/** Avg elapsed time for one comp operation. */
+	double comp_elapsed;
 
-	/**
-	 * CPU time spent pre one comp/decomp operation by whole process
-	 * i.e include current and all other threads in process.
-	 * It is filled with 'getrusage(RUSAGE_SELF, ...)' call.
-	 */
-	double rusage_self;
+	/** Avg eapsed time for one decomp operation. */
+	double decomp_elapsed;
 
-	/**
-	 * CPU time spent per one comp/decomp operation by current thread
-	 * only. It is filled with 'getrusage(RUSAGE_THREAD, ...)'
-	 * call.
-	 */
-	double rusage_thread;
 } comp_run_result_t;
 
 /**
@@ -1144,26 +1146,26 @@ typedef struct {
  */
 typedef struct {
 	struct timeval tv;	 /**< Elapsed time */
-	struct rusage ru_self;	 /**< Rusage value for whole process */
-	struct rusage ru_thread; /**< Rusage value for current thread */
 } time_record_t;
 
 static void parse_args(int argc, char *argv[], comp_args_t *cargs);
 static void usage(char *progname);
 
-/**
- * Set of predefined payloads.
- */
-static unsigned int payloads[] = {
-	1024,
-	2048,
-	4096,
-	8192,
-	16384
-};
+static int compress_packet(odpx_comp_op_param_t *op_params,
+			   comp_args_t *cargs,
+			   odp_queue_t out_queue,
+			   odpx_comp_op_result_t *comp_result);
 
-/** Number of payloads used in the test */
-static unsigned int num_payloads;
+static int decompress_packet(odpx_comp_op_param_t *op_params,
+			     comp_args_t *cargs,
+			     odp_queue_t out_queue,
+			     odpx_comp_op_result_t *comp_result);
+
+/** Payload value for compressing, set in main(), equal to max_seg_len */
+static unsigned int payload_len;
+
+/** Length of data after compression, set after comp op */
+static unsigned int comp_payload_len;
 
 /**
  * Set of known algorithms to test
@@ -1172,7 +1174,6 @@ static comp_alg_config_t algs_config[] = {
 	{
 		.name = "deflate",
 		.session = {
-			.op = ODP_COMP_OP_COMPRESS,
 			.comp_algo = ODP_COMP_ALG_DEFLATE,
 			.hash_algo = ODP_COMP_HASH_ALG_NONE,
 			.compl_queue = ODP_QUEUE_INVALID,
@@ -1182,7 +1183,6 @@ static comp_alg_config_t algs_config[] = {
 	{
 		.name = "zlib",
 		.session = {
-			.op = ODP_COMP_OP_COMPRESS,
 			.comp_algo = ODP_COMP_ALG_ZLIB,
 			.hash_algo = ODP_COMP_HASH_ALG_NONE,
 			.compl_queue = ODP_QUEUE_INVALID,
@@ -1224,66 +1224,14 @@ print_config_names(const char *prefix) {
 	}
 }
 
-/**
- * Snap current time values and put them into 'rec'.
- */
+/** Snap current time values and put them into 'rec' */
 static void
 fill_time_record(time_record_t *rec)
 {
 	gettimeofday(&rec->tv, NULL);
-	getrusage(RUSAGE_SELF, &rec->ru_self);
-	getrusage(RUSAGE_THREAD, &rec->ru_thread);
 }
 
-/**
- * Calculated CPU time difference for given two rusage structures.
- * Note it adds user space and system time together.
- */
-static unsigned long long
-get_rusage_diff(struct rusage *start, struct rusage *end)
-{
-	unsigned long long rusage_diff;
-	unsigned long long rusage_start;
-	unsigned long long rusage_end;
-
-	rusage_start = (start->ru_utime.tv_sec * 1000000) +
-		       (start->ru_utime.tv_usec);
-	rusage_start += (start->ru_stime.tv_sec * 1000000) +
-			(start->ru_stime.tv_usec);
-
-	rusage_end = (end->ru_utime.tv_sec * 1000000) +
-		     (end->ru_utime.tv_usec);
-	rusage_end += (end->ru_stime.tv_sec * 1000000) +
-		      (end->ru_stime.tv_usec);
-
-	rusage_diff = rusage_end - rusage_start;
-
-	return rusage_diff;
-}
-
-/**
- * Get diff for RUSAGE_SELF (whole process) between two time snap
- * records.
- */
-static unsigned long long
-get_rusage_self_diff(time_record_t *start, time_record_t *end)
-{
-	return get_rusage_diff(&start->ru_self, &end->ru_self);
-}
-
-/**
- * Get diff for RUSAGE_THREAD (current thread only) between two
- * time snap records.
- */
-static unsigned long long
-get_rusage_thread_diff(time_record_t *start, time_record_t *end)
-{
-	return get_rusage_diff(&start->ru_thread, &end->ru_thread);
-}
-
-/**
- * Get diff of elapsed time between two time snap records
- */
+/** Get diff of elapsed time between two time snap records */
 static unsigned long long
 get_elapsed_usec(time_record_t *start, time_record_t *end)
 {
@@ -1298,18 +1246,16 @@ get_elapsed_usec(time_record_t *start, time_record_t *end)
 	return e - s;
 }
 
-#define REPORT_HEADER	    "\n%30.30s %15s %15s %15s %15s %15s %15s\n"
-#define REPORT_LINE	    "%30.30s %15d %15d %15.3f %15.3f %15.3f %15d\n"
+#define REPORT_HEADER   "\n\t\t%30.30s %15s %15s %15s %15s\n"
+#define REPORT_LINE     "%30.30s %15d %15d %15.3f %15d\n"
 
-/**
- * Print header line for our report.
- */
+/** Print header line for our report */
 static void
 print_result_header(void)
 {
 	printf(REPORT_HEADER,
-	       "algorithm", "avg over #", "payload (bytes)", "elapsed (us)",
-	       "rusg self (us)", "rusg thrd (us)", "throughput (KBps)");
+	       "Algorithm", "Iterations", "  Payload(bytes)", "Elapsed(us)",
+	       "Throughput(KBps)");
 }
 
 /**
@@ -1317,33 +1263,38 @@ print_result_header(void)
  */
 static void
 print_result(comp_args_t *cargs,
-	     unsigned int payload_length,
 	     comp_alg_config_t *config,
 	     comp_run_result_t *result)
 {
 	unsigned int throughput;
 
-	throughput = (1000000.0 / result->elapsed) * payload_length / 1024;
+	printf("Compression  :");
+	throughput = (1000000.0 / result->comp_elapsed) * payload_len / 1024;
 	printf(REPORT_LINE,
-	       config->name, cargs->iteration_count, payload_length,
-	       result->elapsed, result->rusage_self, result->rusage_thread,
-	       throughput);
+	       config->name, cargs->iteration_count, payload_len,
+	       result->comp_elapsed, throughput);
+
+	printf("Decompression:");
+	throughput = (1000000.0 / result->decomp_elapsed) *
+				  comp_payload_len / 1024;
+	printf(REPORT_LINE,
+	       config->name, cargs->iteration_count, comp_payload_len,
+	       result->decomp_elapsed, throughput);
 }
 
 /**
  * Create ODP comp session for given config.
  */
-static int
-create_session_from_config(odp_comp_session_t *session,
-			   comp_alg_config_t *config,
-			   comp_args_t *cargs)
+static int create_comp_session_from_config(odpx_comp_session_t *session,
+					   comp_alg_config_t *config,
+					   comp_args_t *cargs)
 {
-	odp_comp_session_param_t params;
-	odp_comp_ses_create_err_t ses_create_rc;
+	odpx_comp_session_param_t params;
+	odpx_comp_ses_create_err_t ses_create_rc;
 	odp_queue_t out_queue;
 
-	odp_comp_session_param_init(&params);
-	memcpy(&params, &config->session, sizeof(odp_comp_session_param_t));
+	odpx_comp_session_param_init(&params);
+	memcpy(&params, &config->session, sizeof(odpx_comp_session_param_t));
 	params.op = ODP_COMP_OP_COMPRESS;
 	params.comp_algo = config->session.comp_algo;
 	params.hash_algo = config->session.hash_algo;
@@ -1366,8 +1317,8 @@ create_session_from_config(odp_comp_session_t *session,
 		params.compl_queue = ODP_QUEUE_INVALID;
 		params.mode = ODP_COMP_SYNC;
 	}
-	if (odp_comp_session_create(&params, session,
-				    &ses_create_rc)) {
+	if (odpx_comp_session_create(&params, session,
+				     &ses_create_rc)) {
 		app_err("comp session create failed.\n");
 		return -1;
 	}
@@ -1376,29 +1327,27 @@ create_session_from_config(odp_comp_session_t *session,
 }
 
 /**
- * Run measurement iterations for given config and payload size.
- * Result of run returned in 'result' out parameter.
+ * Create ODP decomp session for given config.
  */
-static int
-run_measure_one(comp_args_t *cargs,
-		odp_comp_session_t *session,
-		unsigned int payload_length,
-		comp_run_result_t *result)
+static int create_decomp_session_from_config(odpx_comp_session_t *session,
+					     comp_alg_config_t *config,
+					     comp_args_t *cargs)
 {
-	odp_comp_op_param_t op_params;
-	odp_comp_op_result_t comp_result;
-	odp_pool_t pkt_pool;
+	odpx_comp_session_param_t params;
+	odpx_comp_ses_create_err_t ses_create_rc;
 	odp_queue_t out_queue;
-	odp_packet_t in_pkt, out_pkt, ev_packet;
-	odp_event_t event;
-	int rc = 0, i;
-	time_record_t start, end;
 
-	pkt_pool = odp_pool_lookup(POOL_NAME);
-	if (pkt_pool == ODP_POOL_INVALID) {
-		app_err("%s not found\n", POOL_NAME);
-		return -1;
-	}
+	odpx_comp_session_param_init(&params);
+	memcpy(&params, &config->session, sizeof(odpx_comp_session_param_t));
+	params.op = ODP_COMP_OP_DECOMPRESS;
+	params.comp_algo = config->session.comp_algo;
+	params.hash_algo = config->session.hash_algo;
+
+	/* Fastest in speed */
+	if (config->session.comp_algo == ODP_COMP_ALG_DEFLATE)
+		params.algo_param.deflate.level = ODP_COMP_LEVEL_MIN;
+	else if (config->session.comp_algo == ODP_COMP_ALG_ZLIB)
+		params.algo_param.zlib.def.level = ODP_COMP_LEVEL_MIN;
 
 	if (cargs->poll) {
 		out_queue = odp_queue_lookup(QUEUE_NAME);
@@ -1406,132 +1355,292 @@ run_measure_one(comp_args_t *cargs,
 			app_err("%s queue not found\n", QUEUE_NAME);
 			return -1;
 		}
+		params.compl_queue = out_queue;
+		params.mode = ODP_COMP_ASYNC;
+	} else {
+		params.compl_queue = ODP_QUEUE_INVALID;
+		params.mode = ODP_COMP_SYNC;
+	}
+	if (odpx_comp_session_create(&params, session,
+				     &ses_create_rc)) {
+		app_err("decomp session create failed.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/** Compress a packet and get result */
+static int compress_packet(odpx_comp_op_param_t *op_params,
+			   comp_args_t *cargs,
+			   odp_queue_t out_queue,
+			   odpx_comp_op_result_t *comp_result)
+{
+	int rc = 0;
+
+	if (cargs->poll) {
+		odp_packet_t ev_packet;
+		odp_event_t event;
+
+		rc = odpx_comp_compress_enq(op_params);
+		if (rc < 0) {
+			app_err("failed to comp enq: rc = %d\n",
+				rc);
+			return -1;
+		}
+
+		/* Poll completion queue for results */
+		do {
+			event = odp_queue_deq(out_queue);
+		} while (event == ODP_EVENT_INVALID);
+
+		if ((odp_event_type(event) != ODP_EVENT_PACKET) ||
+		    (odp_event_subtype(event) !=
+		     ODP_EVENT_PACKET_COMP)) {
+			return -1;
+		}
+
+		ev_packet = odpx_comp_packet_from_event(event);
+		rc = odpx_comp_result(ev_packet, comp_result);
+		if (rc < 0) {
+			app_err("failed to get comp result: rc = %d\n",
+				rc);
+			return rc;
+		}
+
+	} else {
+		rc = odpx_comp_compress(op_params, comp_result);
+		if (rc < 0) {
+			app_err("failed odpx_comp_compress: rc = %d\n",
+				rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+/** Decompress a packet and get result */
+static int decompress_packet(odpx_comp_op_param_t *op_params,
+			     comp_args_t *cargs,
+			     odp_queue_t out_queue,
+			     odpx_comp_op_result_t *comp_result)
+{
+	int rc = 0;
+
+	if (cargs->poll) {
+		odp_packet_t ev_packet;
+		odp_event_t event;
+
+		rc = odpx_comp_decomp_enq(op_params);
+		if (rc < 0) {
+			app_err("failed enq decomp: rc = %d\n",
+				rc);
+			return -1;
+		}
+
+		/* Poll completion queue for results */
+		do {
+			event = odp_queue_deq(out_queue);
+		} while (event == ODP_EVENT_INVALID);
+
+		if ((odp_event_type(event) != ODP_EVENT_PACKET) ||
+		    (odp_event_subtype(event) !=
+		     ODP_EVENT_PACKET_COMP)) {
+			return -1;
+		}
+
+		ev_packet = odpx_comp_packet_from_event(event);
+		rc = odpx_comp_result(ev_packet, comp_result);
+		if (rc < 0) {
+			app_err("failed to get decomp result: rc = %d\n",
+				rc);
+			return rc;
+		}
+
+	} else {
+		rc = odpx_comp_decomp(op_params, comp_result);
+		if (rc < 0) {
+			app_err("failed odpx_comp_decomp: rc = %d\n",
+				rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * Run measurement iterations for given config.
+ * Result of run returned in 'result' out parameter.
+ */
+static int
+run_measure_one(comp_args_t *cargs,
+		uint8_t *input,
+		comp_alg_config_t *config,
+		comp_run_result_t *result)
+{
+	odpx_comp_session_t    comp_session, decomp_session;
+	odpx_comp_op_param_t   op_params;
+	odpx_comp_op_result_t  comp_result;
+	odp_pool_t            pkt_pool;
+	odp_queue_t           out_queue;
+	odp_packet_t          in_pkt, comp_outpkt, decomp_outpkt;
+	int                   rc = 0, i;
+	unsigned int          comp_out_len;
+	time_record_t         comp_strt, comp_end;
+	time_record_t         decomp_strt, decomp_end;
+
+	/* Create comp and decomp sessions */
+	if (create_comp_session_from_config(&comp_session,
+					    config,
+					    cargs))
+		return -1;
+	if (create_decomp_session_from_config(&decomp_session,
+					      config,
+					      cargs)) {
+		odpx_comp_session_destroy(comp_session);
+		return -1;
+	}
+
+	pkt_pool = odp_pool_lookup(POOL_NAME);
+	if (pkt_pool == ODP_POOL_INVALID) {
+		app_err("%s not found\n", POOL_NAME);
+		rc = -1;
+		goto destroy_sessions;
+	}
+
+	if (cargs->poll) {
+		out_queue = odp_queue_lookup(QUEUE_NAME);
+		if (out_queue == ODP_QUEUE_INVALID) {
+			app_err("%s queue not found\n", QUEUE_NAME);
+			rc = -1;
+			goto destroy_sessions;
+		}
 	} else {
 		out_queue = ODP_QUEUE_INVALID;
 	}
 
-	in_pkt = odp_packet_alloc(pkt_pool, payload_length);
-	if (in_pkt == ODP_PACKET_INVALID)
-		return -1;
-
-	if (odp_packet_is_segmented(in_pkt))
-		app_info("Input packet segmented. This test only supports unsegmented packets\n");
+	in_pkt = odp_packet_alloc(pkt_pool, payload_len);
+	if (in_pkt == ODP_PACKET_INVALID) {
+		rc = -1;
+		goto destroy_sessions;
+	}
 
 	/* Fill in pakcet */
 	rc = odp_packet_copy_from_mem(in_pkt,
 				      0,
-				      payload_length,
-				      plaintext);
+				      payload_len,
+				      input);
 	if (rc < 0)
 		goto free_in;
 
-	out_pkt = odp_packet_alloc(pkt_pool, payload_length);
-	if (out_pkt == ODP_PACKET_INVALID) {
+	comp_outpkt = odp_packet_alloc(pkt_pool, payload_len);
+	if (comp_outpkt == ODP_PACKET_INVALID) {
 		rc = -1;
 		goto free_in;
 	}
 
-	if (odp_packet_is_segmented(out_pkt))
-		app_info("Output packet segmented. This test only supports unsegmented packets\n");
-
-	op_params.output.pkt.data_range.offset = 0;
-	op_params.output.pkt.data_range.length = payload_length;
-	op_params.input.pkt.data_range.offset = 0;
-	op_params.input.pkt.data_range.length = payload_length;
-	op_params.last = 1;
-	op_params.session = *session;
-	op_params.input.pkt.packet = in_pkt;
-	op_params.output.pkt.packet = out_pkt;
-
-	fill_time_record(&start);
-	for (i = 0; i < cargs->iteration_count; i++) {
-		if (cargs->poll) {
-			rc = odp_comp_compress_enq(&op_params);
-			if (rc < 0) {
-				app_err("failed odp_comp_compress_enq: rc = %d\n",
-					rc);
-				break;
-			}
-
-			/* Poll completion queue for results */
-			do {
-				event = odp_queue_deq(out_queue);
-			} while (event == ODP_EVENT_INVALID);
-
-			if ((odp_event_type(event) != ODP_EVENT_PACKET) ||
-			    (odp_event_subtype(event) !=
-			     ODP_EVENT_PACKET_COMP)) {
-				rc = -1;
-				break;
-			}
-
-			ev_packet = odp_comp_packet_from_event(event);
-			if ((odp_event_type(odp_packet_to_event(ev_packet)) !=
-			     ODP_EVENT_PACKET) ||
-			     (odp_event_subtype(odp_packet_to_event(ev_packet))
-				 != ODP_EVENT_PACKET_COMP)) {
-				rc = -1;
-				break;
-			}
-
-			rc = odp_comp_result(ev_packet, &comp_result);
-			if (rc < 0) {
-				app_err("failed to get comp result: rc = %d\n",
-					rc);
-				break;
-			}
-
-		} else {
-			rc = odp_comp_compress(&op_params, &comp_result);
-			if (rc < 0) {
-				app_err("failed odp_comp_compress: rc = %d\n",
-					rc);
-				break;
-			}
-		}
+	decomp_outpkt = odp_packet_alloc(pkt_pool, payload_len);
+	if (decomp_outpkt == ODP_PACKET_INVALID) {
+		rc = -1;
+		goto free_comp_out;
 	}
 
-	fill_time_record(&end);
+	if (odp_packet_is_segmented(comp_outpkt))
+		app_info("Comp output packet segmented.\n");
+
+	if (odp_packet_is_segmented(decomp_outpkt))
+		app_info("Decomp output packet segmented.\n");
+
+	op_params.output.pkt.data_range.offset = 0;
+	op_params.output.pkt.data_range.length = payload_len;
+	op_params.input.pkt.data_range.offset = 0;
+	op_params.input.pkt.data_range.length = payload_len;
+	op_params.last = 1;
+	op_params.session = comp_session;
+	op_params.input.pkt.packet = in_pkt;
+	op_params.output.pkt.packet = comp_outpkt;
+
+	/* Compress same packet for iteration_count times */
+	fill_time_record(&comp_strt);
+	for (i = 0; i < cargs->iteration_count; i++) {
+		rc = compress_packet(&op_params,
+				     cargs,
+				     out_queue,
+				     &comp_result);
+		if (rc < 0) {
+			app_err("failed to compress\n");
+			goto free_decomp_out;
+		}
+	}
+	fill_time_record(&comp_end);
+
+	/* Pass the out packet from comp as input to decomp */
+	comp_out_len = comp_result.output.pkt.data_range.length;
+
+	/* Set global var for compressed data len */
+	comp_payload_len = comp_out_len;
+
+	op_params.output.pkt.data_range.offset = 0;
+	op_params.output.pkt.data_range.length = payload_len;
+	op_params.input.pkt.data_range.offset = 0;
+	op_params.input.pkt.data_range.length = comp_out_len;
+	op_params.last = 1;
+	op_params.session = decomp_session;
+	op_params.input.pkt.packet = comp_outpkt;
+	op_params.output.pkt.packet = decomp_outpkt;
+
+	/* Decompress same packet for iteration_count times */
+	fill_time_record(&decomp_strt);
+	for (i = 0; i < cargs->iteration_count; i++) {
+		rc = decompress_packet(&op_params, cargs, out_queue,
+				       &comp_result);
+		if (rc < 0) {
+			app_err("failed to decompress\n");
+			goto free_decomp_out;
+		}
+	}
+	fill_time_record(&decomp_end);
 
 	{
 		double count;
 
-		count = get_elapsed_usec(&start, &end);
-		result->elapsed = count /
+		count = get_elapsed_usec(&comp_strt, &comp_end);
+		result->comp_elapsed = count /
 				  cargs->iteration_count;
 
-		count = get_rusage_self_diff(&start, &end);
-		result->rusage_self = count /
-				      cargs->iteration_count;
-
-		count = get_rusage_thread_diff(&start, &end);
-		result->rusage_thread = count /
-					cargs->iteration_count;
+		count = get_elapsed_usec(&decomp_strt, &decomp_end);
+		result->decomp_elapsed = count /
+				  cargs->iteration_count;
 	}
 
-	odp_packet_free(out_pkt);
+free_decomp_out:
+	odp_packet_free(decomp_outpkt);
+free_comp_out:
+	odp_packet_free(comp_outpkt);
 free_in:
 	odp_packet_free(in_pkt);
+destroy_sessions:
+	odpx_comp_session_destroy(comp_session);
+	odpx_comp_session_destroy(decomp_session);
 
 	return rc < 0 ? rc : 0;
 }
 
-/**
- * Process one algorithm. Note if paload size is specicified it is
- * only one run. Or iterate over set of predefined payloads.
- */
+/** Process one algorithm */
 static int
 run_measure_one_config(comp_args_t *cargs,
 		       comp_alg_config_t *config)
 {
 	comp_run_result_t result;
-	odp_comp_session_t session;
-	odp_comp_capability_t capa;
+	odpx_comp_capability_t capa;
 	int rc = 0;
-	unsigned int i;
+	uint8_t *input = NULL;
 
+	memset(&result, 0, sizeof(result));
 	/* Check capabilities */
-	rc = odp_comp_capability(&capa);
+	rc = odpx_comp_capability(&capa);
 
 	if (config->session.comp_algo == ODP_COMP_ALG_NULL &&
 	    !(capa.comp_algos.bit.null))
@@ -1556,20 +1665,26 @@ run_measure_one_config(comp_args_t *cargs,
 		return rc;
 	}
 
-	if (create_session_from_config(&session, config, cargs))
-		return -1;
-
 	print_result_header();
-	for (i = 0; i < num_payloads; i++) {
-		rc = run_measure_one(cargs, &session,
-				     payloads[i], &result);
-		if (rc)
-			break;
-		print_result(cargs, payloads[i],
-			     config, &result);
-	}
 
-	odp_comp_session_destroy(session);
+	/* Run for 2x data now */
+	input = plaintext;
+	rc = run_measure_one(cargs, input, config, &result);
+	if (rc)
+		return rc;
+
+	printf("----------------------------------Datatype = 2x------------------------------------\n");
+	print_result(cargs, config, &result);
+
+	/* Run for best data */
+	input = malloc(payload_len);
+	memset(input, 'f', payload_len);
+	rc = run_measure_one(cargs, input, config, &result);
+	if (rc)
+		return rc;
+
+	printf("---------------------------------Datatype = Best (memset data)---------------------\n");
+	print_result(cargs, config, &result);
 
 	return rc;
 }
@@ -1584,7 +1699,6 @@ int main(int argc, char *argv[])
 	odp_instance_t instance;
 	odp_pool_capability_t capa;
 	uint32_t max_seg_len;
-	unsigned int i;
 
 	memset(&cargs, 0, sizeof(cargs));
 
@@ -1606,15 +1720,7 @@ int main(int argc, char *argv[])
 	}
 
 	max_seg_len = capa.pkt.max_seg_len;
-
-	for (i = 0; i < sizeof(payloads) / sizeof(unsigned int); i++) {
-		if (payloads[i] > max_seg_len) {
-			payloads[i] = max_seg_len;
-			num_payloads = i + 1;
-			break;
-		}
-		num_payloads++;
-	}
+	payload_len = max_seg_len;
 
 	/* Create packet pool */
 	odp_pool_param_init(&params);
@@ -1679,9 +1785,9 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 	int opt;
 	int long_index;
 	static const struct option longopts[] = {
-		{"algorithm", optional_argument, NULL, 'a'},
+		{"algorithm", required_argument, NULL, 'a'},
 		{"help", no_argument, NULL, 'h'},
-		{"iterations", optional_argument, NULL, 'i'},
+		{"iterations", required_argument, NULL, 'i'},
 		{"poll", no_argument, NULL, 'p'},
 		{NULL, 0, NULL, 0}
 	};
@@ -1732,7 +1838,7 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 }
 
 /**
- * Prinf usage information
+ * Print usage information
  */
 static void usage(char *progname)
 {
@@ -1740,17 +1846,16 @@ static void usage(char *progname)
 	       "Usage: %s OPTIONS\n"
 	       "  E.g. %s -i 1000\n"
 	       "\n"
-	       "OpenDataPlane compression speed measure.\n"
+	       "OpenDataPlane compression/decompression speed measure.\n"
 	       "Optional OPTIONS\n"
-	       "  -a, --algorithm <name> Specify algorithm name (default deflate)\n"
-	       "			 Supported values are:\n",
+	       "  -a, --algorithm <name>    Specify algorithm name (default deflate)\n"
+	       "			    Supported values are:\n",
 	       progname, progname);
 
-	print_config_names("				      ");
-	printf(/*"  -d, --debug	       Enable dump of processed packets.\n"*/
-	       "  -i, --iterations <number> Number of iterations.\n"
-	       "  -p, --poll           Poll completion queue for completion events"
+	print_config_names("				");
+	printf("  -i, --iterations <number> Number of iterations.\n"
+	       "  -p, --poll                Poll completion queue for completion events"
 	       " (async mode).\n"
-	       "  -h, --help	       Display help and exit.\n"
+	       "  -h, --help	            Display help and exit.\n"
 	       "\n");
 }
