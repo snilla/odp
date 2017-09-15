@@ -23,6 +23,8 @@ typedef struct { char dummy; /**< @internal Dummy */ } _odp_abi_comp_compl_t;
 #define ODP_COMP_SESSION_INVALID (0xffffffffffffffffULL)
 
 typedef uint64_t  odp_comp_session_t;
+typedef odp_comp_session_t odpx_comp_session_t;
+
 typedef _odp_abi_comp_compl_t *odp_comp_compl_t;
 
 /**

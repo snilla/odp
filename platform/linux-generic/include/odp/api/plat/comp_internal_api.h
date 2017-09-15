@@ -10,8 +10,8 @@
  * ODP Compression
  */
 
-#ifndef ODP_API_COMP_H_
-#define ODP_API_COMP_H_
+#ifndef ODP_API_COMP_INTERNAL_H_
+#define ODP_API_COMP_INTERNAL_H_
 
 #include <odp/visibility_begin.h>
 #include <odp/api/support.h>
