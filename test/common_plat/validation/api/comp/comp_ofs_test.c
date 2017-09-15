@@ -21,7 +21,7 @@
 #include <odp/helper/linux.h>
 #include <CUnit/Basic.h>
 #include <odp_cunit_common.h>
-#include "odp_comp_test_inp.h"
+#include "odp_comp_test.h"
 #include "comp.h"
 
 #define app_dbg printf

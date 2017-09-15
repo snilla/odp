@@ -20,7 +20,7 @@
 #include <CUnit/Basic.h>
 #include <odp_cunit_common.h>
 #include "test_vectors.h"
-#include "odp_comp_test_inp.h"
+#include "odp_comp_test.h"
 #include "comp.h"
 
 struct suite_context_s {

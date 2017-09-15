@@ -8,7 +8,7 @@
 
 #include <odp_api.h>
 #include <odp_cunit_common.h>
-#include "odp_comp_test_inp.h"
+#include "odp_comp_test.h"
 #include "comp.h"
 
 #define TEST_NUM_PKT  64
