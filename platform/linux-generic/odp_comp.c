@@ -644,24 +644,20 @@ static int term_def(odp_comp_generic_session_t *session)
 		rc = deflateEnd(streamp);
 
 		if (rc != Z_OK) {
-			ODP_DBG("deflateEnd failed. Err %s,rc %d\n",
+			ODP_ERR("deflateEnd failed. Err %s,rc %d\n",
 				streamp->msg, rc);
-			/* or we may choose to just return 0 with error info
-			   but depends if it can affect subsequent init calls
-			 */
-			return -1;
+			/* we choose to just return 0 with error info */
 		}
 	} else {
 		rc = inflateEnd(streamp);
 		if (rc != Z_OK) {
-			ODP_DBG("inflateEnd failed. Err %s\n", streamp->msg);
-			/* or we may choose to just return 0 with error info
-			   but depends if it can affect subsequent init calls
-			 */
-			return -1;
+			ODP_ERR("inflateEnd failed. Err %s\n", streamp->msg);
+			/* we choose to just return 0 with error info */
 		}
 	}
 
+	free(streamp);
+	streamp = NULL;
 	free(ctxp);
 	ctxp = NULL;
 #ifdef ODP_COMP

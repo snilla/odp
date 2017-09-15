@@ -4,6 +4,9 @@
  * SPDX-License-Identifier:	BSD-3-Clause
  */
 
+/* Test source for running compression/decompression tests
+ * using deflate and zlib algorithms
+ */
 #include "config.h"
 
 #include <odp_api.h>
@@ -595,6 +598,42 @@ void comp_test_decompress_alg_zlib(void)
 			plaintext, PLAIN_TEXT_SIZE);
 }
 
+void comp_test_ofs_compress_deflate(void)
+{
+	int compress = 1;
+
+	test_outof_space_error(ODP_COMP_ALG_DEFLATE,
+			       ODP_COMP_HASH_ALG_NONE,
+			       compress, suite_context.op_mode);
+}
+
+void comp_test_ofs_decompress_deflate(void)
+{
+	int compress = 0;
+
+	test_outof_space_error(ODP_COMP_ALG_DEFLATE,
+			       ODP_COMP_HASH_ALG_NONE,
+			       compress, suite_context.op_mode);
+}
+
+void comp_test_ofs_compress_zlib(void)
+{
+	int compress = 1;
+
+	test_outof_space_error(ODP_COMP_ALG_ZLIB,
+			       ODP_COMP_HASH_ALG_NONE,
+			       compress, suite_context.op_mode);
+}
+
+void comp_test_ofs_decompress_zlib(void)
+{
+	int compress = 0;
+
+	test_outof_space_error(ODP_COMP_ALG_ZLIB,
+			       ODP_COMP_HASH_ALG_NONE,
+			       compress, suite_context.op_mode);
+}
+
 int comp_suite_sync_init(void)
 {
 	suite_context.pool = odp_pool_lookup(COMP_PACKET_POOL);
@@ -628,6 +667,14 @@ odp_testinfo_t comp_suite[] = {
 				  comp_test_deflate_check),
 	ODP_TEST_INFO_CONDITIONAL(comp_test_decompress_alg_zlib,
 				  comp_test_zlib_check),
+	ODP_TEST_INFO_INACTIVE(comp_test_ofs_compress_deflate,
+			       NULL),
+	ODP_TEST_INFO_INACTIVE(comp_test_ofs_decompress_deflate,
+			       NULL),
+	ODP_TEST_INFO_INACTIVE(comp_test_ofs_compress_zlib,
+			       NULL),
+	ODP_TEST_INFO_INACTIVE(comp_test_ofs_decompress_zlib,
+			       NULL),
 	ODP_TEST_INFO_NULL,
 };
 

@@ -14,6 +14,10 @@ void comp_test_compress_alg_def(void);
 void comp_test_compress_alg_zlib(void);
 void comp_test_decompress_alg_def(void);
 void comp_test_decompress_alg_zlib(void);
+void comp_test_ofs_compress_deflate(void);
+void comp_test_ofs_compress_zlib(void);
+void comp_test_ofs_decompress_deflate(void);
+void comp_test_ofs_decompress_zlib(void);
 
 /* test arrays: */
 extern odp_testinfo_t comp_suite[];
@@ -33,4 +37,9 @@ int comp_term(odp_instance_t inst);
 /* main test program: */
 int comp_main(int argc, char *argv[]);
 
+/* Test in another file */
+void test_outof_space_error(odpx_comp_alg_t comp_alg,
+			    odpx_comp_hash_alg_t hash_alg,
+			    odp_bool_t compress,
+			    odpx_comp_op_mode_t mode);
 #endif
