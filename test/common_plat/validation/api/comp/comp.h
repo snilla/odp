@@ -20,6 +20,8 @@ void comp_test_ofs_compress_deflate(void);
 void comp_test_ofs_compress_zlib(void);
 void comp_test_ofs_decompress_deflate(void);
 void comp_test_ofs_decompress_zlib(void);
+void comp_test_ofs_segment_deflate(void);
+void comp_test_ofs_segment_zlib(void);
 
 /* test arrays: */
 extern odp_testinfo_t comp_suite[];
