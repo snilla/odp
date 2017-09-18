@@ -14,6 +14,8 @@ void comp_test_compress_alg_def(void);
 void comp_test_compress_alg_zlib(void);
 void comp_test_decompress_alg_def(void);
 void comp_test_decompress_alg_zlib(void);
+void comp_test_comp_decomp_alg_def(void);
+void comp_test_comp_decomp_alg_zlib(void);
 void comp_test_ofs_compress_deflate(void);
 void comp_test_ofs_compress_zlib(void);
 void comp_test_ofs_decompress_deflate(void);

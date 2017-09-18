@@ -91,7 +91,7 @@ static int check_comp_alg_support(odpx_comp_alg_t comp,
 	return ODP_TEST_ACTIVE;
 }
 
-static void ODP_UNUSED comp_decomp_alg_test(
+static void comp_decomp_alg_test(
 			odpx_comp_alg_t comp_alg,
 			odpx_comp_hash_alg_t hash_alg,
 			const uint8_t *plaintext,
@@ -207,9 +207,9 @@ static void ODP_UNUSED comp_decomp_alg_test(
 
 		comp_evpkt = odpx_comp_packet_from_event(comp_event);
 		CU_ASSERT(ODP_EVENT_PACKET ==
-			odp_event_type(odp_packet_to_event(comp_evpkt)));
+			odp_event_type(comp_event));
 		CU_ASSERT(ODP_EVENT_PACKET_COMP ==
-			odp_event_subtype(odp_packet_to_event(comp_evpkt)));
+			odp_event_subtype(comp_event));
 		rc = odpx_comp_result(comp_evpkt, &comp_result);
 		CU_ASSERT(!rc);
 	}
@@ -248,9 +248,9 @@ static void ODP_UNUSED comp_decomp_alg_test(
 			decomp_evpkt =
 				odpx_comp_packet_from_event(decomp_event);
 			CU_ASSERT(ODP_EVENT_PACKET == odp_event_type(
-				  odp_packet_to_event(decomp_evpkt)));
+				  decomp_event));
 			CU_ASSERT(ODP_EVENT_PACKET_COMP ==
-			odp_event_subtype(odp_packet_to_event(decomp_evpkt)));
+			odp_event_subtype(decomp_event));
 			rc = odpx_comp_result(decomp_evpkt, &decomp_result);
 			CU_ASSERT(!rc);
 		}
@@ -286,7 +286,7 @@ static void ODP_UNUSED comp_decomp_alg_test(
 cleanup:
 	odp_packet_free(comp_inpkt);
 	odp_packet_free(comp_outpkt);
-	odp_packet_free(decomp_outpkt);
+	odp_packet_free(decomp_result.output.pkt.packet);
 
 	rc = odpx_comp_session_destroy(comp_session);
 	CU_ASSERT(!rc);
@@ -392,9 +392,9 @@ static void comp_alg_test(odpx_comp_alg_t comp_alg,
 
 		comp_evpkt = odpx_comp_packet_from_event(comp_event);
 		CU_ASSERT(ODP_EVENT_PACKET ==
-			odp_event_type(odp_packet_to_event(comp_evpkt)));
+			odp_event_type(comp_event));
 		CU_ASSERT(ODP_EVENT_PACKET_COMP ==
-			odp_event_subtype(odp_packet_to_event(comp_evpkt)));
+			odp_event_subtype(comp_event));
 		rc = odpx_comp_result(comp_evpkt, &comp_result);
 		CU_ASSERT(!rc);
 	}
@@ -516,9 +516,9 @@ static void decomp_alg_test(odpx_comp_alg_t comp_alg,
 			decomp_evpkt =
 				odpx_comp_packet_from_event(decomp_event);
 			CU_ASSERT(ODP_EVENT_PACKET ==
-			odp_event_type(odp_packet_to_event(decomp_evpkt)));
+			odp_event_type(decomp_event));
 			CU_ASSERT(ODP_EVENT_PACKET_COMP ==
-			odp_event_subtype(odp_packet_to_event(decomp_evpkt)));
+			odp_event_subtype(decomp_event));
 			rc = odpx_comp_result(decomp_evpkt, &decomp_result);
 			CU_ASSERT(!rc);
 		}
@@ -555,7 +555,7 @@ static void decomp_alg_test(odpx_comp_alg_t comp_alg,
 
 cleanup:
 	odp_packet_free(decomp_inpkt);
-	odp_packet_free(decomp_outpkt);
+	odp_packet_free(decomp_result.output.pkt.packet);
 
 	rc = odpx_comp_session_destroy(decomp_session);
 	CU_ASSERT(!rc);
@@ -604,6 +604,23 @@ void comp_test_decompress_alg_zlib(void)
 			compressed_text_zlib, COMP_ZLIB_SIZE,
 			plaintext, PLAIN_TEXT_SIZE);
 }
+
+/* Compress/Decompress content using deflate algorithm */
+void comp_test_comp_decomp_alg_def(void)
+{
+	comp_decomp_alg_test(ODP_COMP_ALG_DEFLATE,
+			     ODP_COMP_HASH_ALG_NONE,
+			     plaintext, PLAIN_TEXT_SIZE);
+}
+
+/* Compress/Decompress content using deflate algorithm */
+void comp_test_comp_decomp_alg_zlib(void)
+{
+	comp_decomp_alg_test(ODP_COMP_ALG_ZLIB,
+			     ODP_COMP_HASH_ALG_NONE,
+			     plaintext, PLAIN_TEXT_SIZE);
+}
+
 
 void comp_test_ofs_compress_deflate(void)
 {
@@ -673,6 +690,10 @@ odp_testinfo_t comp_suite[] = {
 	ODP_TEST_INFO_CONDITIONAL(comp_test_decompress_alg_def,
 				  comp_test_deflate_check),
 	ODP_TEST_INFO_CONDITIONAL(comp_test_decompress_alg_zlib,
+				  comp_test_zlib_check),
+	ODP_TEST_INFO_CONDITIONAL(comp_test_comp_decomp_alg_def,
+				  comp_test_deflate_check),
+	ODP_TEST_INFO_CONDITIONAL(comp_test_comp_decomp_alg_zlib,
 				  comp_test_zlib_check),
 	ODP_TEST_INFO_INACTIVE(comp_test_ofs_compress_deflate,
 			       NULL),
