@@ -9,13 +9,13 @@
  * It compresses or decompresses the input provided to stdin
  * and optionally writes to output file.
  *
- * Test is a single-threaded application which only measure compression/decompression
- * throughput for given input file.
+ * Test is a single-threaded application which only measure
+ * compression/decompression throughput for given input file.
  * It also provide ability to user to input different compression level.
  * Compression level is ignored for decompression case.
  * Current test operates on packets and process input upto maximum packet
  * segment data length (which may vary across different odp implementation).
- * 
+ *
  * Options:
  * --------
  * Run
@@ -112,7 +112,7 @@ typedef struct {
 	 */
 	unsigned int outbuf_size;
 
-	/** 
+	/**
 	 * Name of file to write output to, enabled when user provides output file
 	 */
 	char *out_file;
@@ -155,7 +155,7 @@ static int decompress_packet(odpx_comp_op_param_t *op_params,
 
 int write_out_data(odpx_comp_op_result_t *result, FILE *out);
 
-/** 
+/**
  * Chunksize for compressing/decompressing, set in main(),
  * equal to max_seg_len
  */
@@ -245,12 +245,14 @@ get_elapsed_usec(time_record_t *start, time_record_t *end)
 static void
 print_result_header(comp_args_t *cargs)
 {
-	fprintf(stderr, "  Operation       %s\n", cargs->decomp ? "Decompression" : "Compression");
-	fprintf(stderr, "  Operation mode  %s\n", cargs->poll ? "Async polling" : "Sync");
+	fprintf(stderr, "  Operation       %s\n",
+		cargs->decomp ? "Decompression" : "Compression");
+	fprintf(stderr, "  Operation mode  %s\n",
+		cargs->poll ? "Async polling" : "Sync");
 
 	fprintf(stderr, REPORT_HEADER,
-	       "Algorithm", "Iterations", "Chunksize(bytes)", "Time elapsed(us)",
-	       "Throughput(KBps)");
+		"Algorithm", "Iterations", "Chunksize(bytes)",
+		"Time elapsed(us)", "Throughput(KBps)");
 }
 
 /** Print one line of our report */
@@ -261,10 +263,12 @@ print_result(comp_args_t *cargs,
 {
 	unsigned int throughput;
 
-	throughput = (1000000.0 / result->total_elapsed) * result->tot_input_len / 1024;
+	throughput = (1000000.0 / result->total_elapsed)
+			* result->tot_input_len / 1024;
 	fprintf(stderr, REPORT_LINE,
-	       config->name, cargs->iteration_count, payload_len, /*result->tot_input_len / cargs->iteration_count,*/
-	       result->total_elapsed, throughput);
+		config->name, cargs->iteration_count, payload_len,
+		/*result->tot_input_len / cargs->iteration_count,*/
+		result->total_elapsed, throughput);
 }
 
 /** Create ODP session for given config. */
@@ -285,8 +289,7 @@ create_session_from_config(odpx_comp_session_t *session,
 
 	if (cargs->decomp) {
 		params.op = ODP_COMP_OP_DECOMPRESS;
-	}
-	else {
+	} else {
 		params.op = ODP_COMP_OP_COMPRESS;
 
 		if (config->session.comp_algo == ODP_COMP_ALG_DEFLATE)
@@ -308,8 +311,8 @@ create_session_from_config(odpx_comp_session_t *session,
 		params.mode = ODP_COMP_SYNC;
 	}
 	if ((odpx_comp_session_create(&params, session,
-							    &ses_create_rc)) &&
-		(ses_create_rc != ODP_COMP_SES_CREATE_ERR_NONE)) {
+				      &ses_create_rc)) &&
+	    (ses_create_rc != ODP_COMP_SES_CREATE_ERR_NONE)) {
 		app_err("session create failed.\n");
 		return -1;
 	}
@@ -393,7 +396,7 @@ static int decompress_packet(odpx_comp_op_param_t *op_params,
 
 		if ((odp_event_type(event) != ODP_EVENT_PACKET) ||
 		    (odp_event_subtype(event) !=
-	    	 ODP_EVENT_PACKET_COMP)) {
+		    ODP_EVENT_PACKET_COMP)) {
 			return -1;
 		}
 
@@ -506,7 +509,7 @@ run_measure_one(comp_args_t *cargs,
 		/* read max_seg_len data from file at a time and process */
 		while (!rc && read < flen) {
 			/* Read len data from file */
-			in_len = odp_packet_seg_len(in_pkt);;
+			in_len = odp_packet_seg_len(in_pkt);
 			in_len = fread(data, 1, in_len, input);
 			if (ferror(input)) {
 				app_err("error while reading from stdin\n");
@@ -532,30 +535,31 @@ run_measure_one(comp_args_t *cargs,
 			do {
 				if (cargs->decomp)
 					rc = decompress_packet(&op_params,
-										   cargs,
-										   out_queue,
-										   &comp_result);
+							       cargs,
+							       out_queue,
+							       &comp_result);
 				else
 					rc = compress_packet(&op_params,
-										 cargs,
-										 out_queue,
-										 &comp_result);
+							     cargs,
+							     out_queue,
+							     &comp_result);
 
 				if (rc < 0) {
 					app_err("failed to %s: rc = %d\n",
-							cargs->decomp ? "decompress" : "compress", rc);
+						cargs->decomp ?
+						"decompress" : "compress", rc);
 					break;
 				}
-				if (/* comp_result->err == ODP_COMP_ERR_OUT_OF_SPACE &&*/
-					 cargs->out_fptr) {
-					write_out_data(&comp_result, cargs->out_fptr);
-				}
-			} while(comp_result.err == ODP_COMP_ERR_OUT_OF_SPACE);
+				if (cargs->out_fptr)
+					write_out_data(&comp_result,
+						       cargs->out_fptr);
+			} while (comp_result.err == ODP_COMP_ERR_OUT_OF_SPACE);
 
 			fill_time_record(&end);
 
 			{
 				double count;
+
 				count = get_elapsed_usec(&start, &end);
 				result->total_elapsed += count;
 			}
@@ -612,9 +616,10 @@ run_measure_one_config(comp_args_t *cargs,
 
 	/* Open outfile to write if provided */
 	if (cargs->out_file) {
-		cargs->out_fptr = fopen( cargs->out_file, "wb");
+		cargs->out_fptr = fopen(cargs->out_file, "wb");
 		if (cargs->out_fptr == NULL) {
-			app_err("Unable to open output file: %s\n", cargs->out_file);
+			app_err("Unable to open output file: %s\n",
+				cargs->out_file);
 			return -1;
 		}
 	}
@@ -692,9 +697,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (run_measure_one_config(&cargs, cargs.alg_config)) {
+	if (run_measure_one_config(&cargs, cargs.alg_config))
 		app_err("Failed to measure\n");
-	}
 
 	if (cargs.poll)
 		odp_queue_destroy(out_queue);
@@ -730,8 +734,10 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 		{"help", no_argument, NULL, 'h'},
 		{"iterations", required_argument, NULL, 'i'},
 		{"poll", no_argument, NULL, 'p'},
-		{"decomp", no_argument, NULL, 'd'}, /* make it mandatory, comp or decomp */
-		{"comp", no_argument, NULL, 'c'}, /* make it mandatory, comp or decomp */
+		/* make it mandatory, comp or decomp */
+		{"decomp", no_argument, NULL, 'd'},
+		/* make it mandatory, comp or decomp */
+		{"comp", no_argument, NULL, 'c'},
 		{"level", required_argument, NULL, 'l'},
 		{NULL, 0, NULL, 0}
 	};
@@ -774,7 +780,7 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 			cargs->alg_config = find_config_by_name(optarg);
 			if (!cargs->alg_config) {
 				app_err("cannot test comp '%s' configuration\n",
-				       optarg);
+					optarg);
 				usage(argv[0]);
 				exit(EXIT_FAILURE);
 			}
@@ -804,7 +810,8 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 		case 's':
 			cargs->outbuf_size = atoi(optarg);
 			if (cargs->outbuf_size > max_len) {
-				app_info("Max out buf size supported: %u, resetting it\n", max_len);
+				app_info("Max out buf size supported: %u,"
+					 "resetting it\n", max_len);
 				cargs->outbuf_size = max_len;
 			}
 			break;
@@ -820,14 +827,16 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 		exit(EXIT_FAILURE);
 	}
 
-	rc = odpx_comp_alg_capability(cargs->alg_config->session.comp_algo, &capa, 1);
+	rc = odpx_comp_alg_capability(cargs->alg_config->session.comp_algo,
+				      &capa, 1);
 	if (rc < 0) {
 		app_err("failed to get algo capabilities\n");
 		exit(EXIT_FAILURE);
 	}
 
 	if (cargs->level > capa.max_level) {
-		app_err("Max level supported for %s is: %d\n", cargs->alg_config->name, capa.max_level);
+		app_err("Max level supported for %s is: %d\n",
+			cargs->alg_config->name, capa.max_level);
 		exit(EXIT_FAILURE);
 	}
 
@@ -841,32 +850,34 @@ static void parse_args(int argc, char *argv[], comp_args_t *cargs)
 static void usage(char *progname)
 {
 	fprintf(stderr, "\n"
-	       "OpenDataPlane compression/decompression speed measure.\n\n"
-	       "Usage: %s OPTIONS < input_file_name\n"
-	       "  E.g. %s -a zlib -c -o out_file_name < input_file_name\n"
-	       "\n"
-	       "OPTIONS\n",
-	       progname, progname);
+		"OpenDataPlane compression/decompression speed measure.\n\n"
+		"Usage: %s OPTIONS < input_file_name\n"
+		"  E.g. %s -a zlib -c -o out_file_name < input_file_name\n"
+		"\n"
+		"OPTIONS\n",
+		progname, progname);
 
 	fprintf(stderr,
-	       "  -a, --algorithm <name>    Specify algorithm name (mandatory)\n"
-	       "                            Supported values are:\n");
-	       print_config_names("                              ");
+		"  -a, --algorithm <name> Specify algorithm name (mandatory)\n"
+		"                          Supported values are:\n");
+		print_config_names("                              ");
 
 	fprintf(stderr,
-	       "  -i, --iterations <number> Number of iterations.\n"
-	       "  -d, --decomp              Decompression speed measure\n"
-	       "  -s, --outsize <number>    Output bufer size\n"
-	       "  -o, --outfile <name>      Output file name to write comp/decomp\n"
-	       "                            result\n"
-	       "                            NOTE: For performance measurement,\n"
-	       "                            it is recommended to not use output(dest)\n"
-	       "                            file to write output. Make sure\n"
-	       "                            #iterations is 1\n"
-	       "  -c, --comp                Compression speed measure\n"
-	       "  -l, --level               Compression level\n" //print max level
-	       "  -p, --poll                Poll completion queue for completion\n"
-	       "                            events (async mode)\n"
-	       "  -h, --help                Display help and exit\n"
-	       "\n");
+		"  -i, --iterations <number> Number of iterations.\n"
+		"  -d, --decomp              Decompression speed measure\n"
+		"  -s, --outsize <number>    Output bufer size\n"
+		"  -o, --outfile <name>      Output file name to write\n"
+		"                            comp/decomp result\n"
+		"                            NOTE: For perf measurement,\n"
+		"                            it is recommended to not use\n"
+		"                            output(dest) file to write\n"
+		"                            output. Make sure\n"
+		"                            #iterations is 1\n"
+		"  -c, --comp                Compression speed measure\n"
+		"  -l, --level               Compression level\n"
+		"  -p, --poll                Poll completion queue\n"
+		"                            for completion\n"
+		"                            events (async mode)\n"
+		"  -h, --help                Display help and exit\n"
+		"\n");
 }
