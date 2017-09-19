@@ -866,6 +866,7 @@ odp_comp_compress(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 {
 	odp_comp_generic_session_t *session;
 	odp_comp_generic_op_result_t *op_result;
+	int rc;
 
 	session = (odp_comp_generic_session_t *)(intptr_t)params->session;
 	if (NULL == session) {
@@ -884,7 +885,9 @@ odp_comp_compress(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 	result->output.pkt.data_range.length = 0;
 
 	/* Invoke the functions */
-	session->comp.func(params, session, result);
+	rc = session->comp.func(params, session, result);
+	if (rc < 0)
+		return rc;
 
 	_odp_buffer_event_subtype_set(packet_to_buffer
 				      (params->output.pkt.packet),
@@ -944,9 +947,7 @@ odp_comp_decomp(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 		params->output.pkt.data_range.offset;
 	result->output.pkt.data_range.length = 0;
 
-	session->comp.func(params, session, result);
-
-	return 0;
+	return (session->comp.func(params, session, result));
 }
 
 int

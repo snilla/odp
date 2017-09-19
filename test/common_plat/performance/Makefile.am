@@ -5,7 +5,8 @@ TESTS_ENVIRONMENT += TEST_DIR=${builddir}
 EXECUTABLES = odp_bench_packet$(EXEEXT) \
 			  odp_crypto$(EXEEXT) \
 			  odp_pktio_perf$(EXEEXT) \
-			  odp_comp_perf$(EXEEXT)
+			  odp_comp_perf$(EXEEXT) \
+			  odp_comp_perf_file$(EXEEXT)
 
 COMPILE_ONLY = odp_l2fwd$(EXEEXT) \
 	       odp_pktio_ordered$(EXEEXT) \
@@ -41,6 +42,8 @@ odp_scheduling_LDFLAGS = $(AM_LDFLAGS) -static
 odp_scheduling_CFLAGS = $(AM_CFLAGS) -I${top_srcdir}/test
 odp_comp_perf_LDFLAGS = $(AM_LDFLAGS) -static
 odp_comp_perf_CFLAGS = $(AM_CFLAGS) -I${top_srcdir}/test
+odp_comp_perf_file_LDFLAGS = $(AM_LDFLAGS) -static
+odp_comp_perf_file_CFLAGS = $(AM_CFLAGS) -I${top_srcdir}/test
 
 noinst_HEADERS = \
 		  $(top_srcdir)/test/test_debug.h \
@@ -53,6 +56,7 @@ dist_odp_sched_latency_SOURCES = odp_sched_latency.c
 dist_odp_scheduling_SOURCES = odp_scheduling.c
 dist_odp_pktio_perf_SOURCES = odp_pktio_perf.c
 dist_odp_comp_perf_SOURCES = odp_comp_perf.c
+dist_odp_comp_perf_file_SOURCES = odp_comp_perf_file.c
 
 EXTRA_DIST = $(TESTSCRIPTS)
 
