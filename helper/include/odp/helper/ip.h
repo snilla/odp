@@ -95,15 +95,28 @@ typedef struct ODP_PACKED {
 ODP_STATIC_ASSERT(sizeof(odph_ipv4hdr_t) == ODPH_IPV4HDR_LEN,
 		  "ODPH_IPV4HDR_T__SIZE_ERROR");
 
+/**
+ * Calculate IPv4 header checksum
+ *
+ * @param pkt         The packet to be checksummed
+ * @param offset      Offset into pkt of start of IP header
+ * @param ip          Pointer to IPv4 header to be checksummed
+ * @param[out] chksum Field to receive checksum results
+ *
+ * @retval 0  On success
+ * @retval <0 On failure
+ */
 static inline int odph_ipv4_csum(odp_packet_t pkt,
 				 uint32_t offset,
 				 odph_ipv4hdr_t *ip,
 				 odp_u16sum_t *chksum)
 {
-	int nleft = ODPH_IPV4HDR_IHL(ip->ver_ihl) * 4;
+	unsigned nleft = ODPH_IPV4HDR_IHL(ip->ver_ihl) * 4;
 	uint16_t buf[nleft / 2];
 	int res;
 
+	if (odp_unlikely(nleft < sizeof(*ip)))
+		return -1;
 	ip->chksum = 0;
 	memcpy(buf, ip, sizeof(*ip));
 	res = odp_packet_copy_to_mem(pkt, offset + sizeof(*ip),
@@ -135,7 +148,9 @@ static inline int odph_ipv4_csum_valid(odp_packet_t pkt)
 	if (offset == ODP_PACKET_OFFSET_INVALID)
 		return 0;
 
-	odp_packet_copy_to_mem(pkt, offset, sizeof(odph_ipv4hdr_t), &ip);
+	res = odp_packet_copy_to_mem(pkt, offset, sizeof(odph_ipv4hdr_t), &ip);
+	if (odp_unlikely(res < 0))
+		return 0;
 
 	chksum = ip.chksum;
 
