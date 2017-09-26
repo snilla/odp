@@ -1,6 +1,6 @@
 include ../Makefile.inc
 
-test_PROGRAMS = comp_main$(EXEEXT)
+test_PROGRAMS = comp_main$(EXEEXT) odp_comp_test_file$(EXEEXT)
 
 comp_main_SOURCES = comp_main.c \
 		      comp.c \
@@ -10,5 +10,7 @@ comp_main_SOURCES = comp_main.c \
 			 comp_ofs_test.c \
 		      test_vectors.h 
 
-comp_main_LDADD = $(LIBCUNIT_COMMON) $(LIBODP)
+odp_comp_test_file_SOURCES = odp_comp_test_file.c
 
+comp_main_LDADD = $(LIBCUNIT_COMMON) $(LIBODP)
+odp_comp_test_file_LDADD = $(LIBCNIT_COMMON) $(LIBODP)
