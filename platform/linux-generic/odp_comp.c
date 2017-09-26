@@ -887,7 +887,7 @@ odp_comp_compress(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 
 	/* Invoke the functions */
 	rc = session->comp.func(params, session, result);
-	if (rc < 0)
+	if (rc < 0 && result->err != ODP_COMP_ERR_OUT_OF_SPACE)
 		return rc;
 
 	_odp_buffer_event_subtype_set(packet_to_buffer
@@ -948,7 +948,7 @@ odp_comp_decomp(odp_comp_op_param_t *params, odp_comp_op_result_t *result)
 		params->output.pkt.data_range.offset;
 	result->output.pkt.data_range.length = 0;
 
-	return (session->comp.func(params, session, result));
+	return session->comp.func(params, session, result);
 }
 
 int
@@ -968,7 +968,7 @@ odp_comp_decomp_enq(odp_comp_op_param_t *params)
 	op_result = get_op_result_from_packet(params->output.pkt.packet);
 
 	ret = odp_comp_decomp(params, &op_result->result);
-	if (ret < 0)
+	if (ret < 0 && op_result->result.err != ODP_COMP_ERR_OUT_OF_SPACE)
 		return -1;
 
 	/* Asynchronous, build result (no HW so no errors) and send
@@ -984,7 +984,7 @@ odp_comp_decomp_enq(odp_comp_op_param_t *params)
 		odp_event_free(completion_event);
 		return -1;
 	}
-	return ret;
+	return 0;
 }
 
 int odp_comp_init_global(void)

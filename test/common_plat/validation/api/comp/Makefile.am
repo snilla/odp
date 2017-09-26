@@ -11,3 +11,4 @@ comp_main_SOURCES = comp_main.c \
 		      test_vectors.h 
 
 comp_main_LDADD = $(LIBCUNIT_COMMON) $(LIBODP)
+

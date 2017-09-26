@@ -5,13 +5,13 @@ TESTS_ENVIRONMENT += TEST_DIR=${builddir}
 EXECUTABLES = odp_bench_packet$(EXEEXT) \
 			  odp_crypto$(EXEEXT) \
 			  odp_pktio_perf$(EXEEXT) \
-			  odp_comp_perf$(EXEEXT) \
-			  odp_comp_perf_file$(EXEEXT)
+			  odp_comp_perf$(EXEEXT)
 
 COMPILE_ONLY = odp_l2fwd$(EXEEXT) \
 	       odp_pktio_ordered$(EXEEXT) \
 	       odp_sched_latency$(EXEEXT) \
-	       odp_scheduling$(EXEEXT)
+	       odp_scheduling$(EXEEXT) \
+	       odp_comp_perf_file$(EXEEXT) 
 
 TESTSCRIPTS = odp_l2fwd_run.sh \
 	      odp_pktio_ordered_run.sh \

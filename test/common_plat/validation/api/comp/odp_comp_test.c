@@ -232,8 +232,10 @@ static void comp_decomp_alg_test(
 	do {
 		if (suite_context.op_mode == ODP_COMP_SYNC) {
 			rc = odpx_comp_decomp(&op_params, &decomp_result);
-			if (rc < 0)
+			if (rc < 0 && decomp_result.err !=
+				ODP_COMP_ERR_OUT_OF_SPACE){
 				goto cleanup;
+			}
 		} else {
 			rc = odpx_comp_decomp_enq(&op_params);
 			if (rc < 0)
@@ -288,14 +290,15 @@ static void comp_decomp_alg_test(
 	} while (seg != ODP_PACKET_SEG_INVALID || cmp_offset < plaintext_len);
 
 cleanup:
-	odp_packet_free(comp_inpkt);
-	odp_packet_free(comp_outpkt);
-	odp_packet_free(decomp_result.output.pkt.packet);
 
 	rc = odpx_comp_session_destroy(comp_session);
 	CU_ASSERT(!rc);
 	rc = odpx_comp_session_destroy(decomp_session);
 	CU_ASSERT(!rc);
+
+	odp_packet_free(comp_inpkt);
+	odp_packet_free(comp_outpkt);
+	odp_packet_free(decomp_result.output.pkt.packet);
 }
 
 static void comp_decomp_segment_test(
@@ -531,6 +534,11 @@ static void comp_decomp_segment_test(
 error:
 	CU_ASSERT(cmp_offset == SEGMENTED_TEST_PKT_LEN);
 cleanup:
+	rc = odpx_comp_session_destroy(comp_session);
+	CU_ASSERT(!rc);
+	rc = odpx_comp_session_destroy(decomp_session);
+	CU_ASSERT(!rc);
+
 	/* Clear packet data */
 	_odp_packet_set_data(comp_inpkt, 0, 0x0, SEGMENTED_TEST_PKT_LEN);
 	_odp_packet_set_data(comp_outpkt, 0, 0x0, SEGMENTED_TEST_PKT_LEN);
@@ -539,11 +547,6 @@ cleanup:
 	odp_packet_free(comp_inpkt);
 	odp_packet_free(comp_outpkt);
 	odp_packet_free(decomp_result.output.pkt.packet);
-
-	rc = odpx_comp_session_destroy(comp_session);
-	CU_ASSERT(!rc);
-	rc = odpx_comp_session_destroy(decomp_session);
-	CU_ASSERT(!rc);
 }
 
 static void comp_alg_test(odpx_comp_alg_t comp_alg,
@@ -652,11 +655,11 @@ static void comp_alg_test(odpx_comp_alg_t comp_alg,
 	}
 
 cleanup:
-	odp_packet_free(comp_inpkt);
-	odp_packet_free(comp_outpkt);
-
 	rc = odpx_comp_session_destroy(comp_session);
 	CU_ASSERT(!rc);
+
+	odp_packet_free(comp_inpkt);
+	odp_packet_free(comp_outpkt);
 }
 
 static void decomp_alg_test(odpx_comp_alg_t comp_alg,
@@ -806,11 +809,11 @@ static void decomp_alg_test(odpx_comp_alg_t comp_alg,
 	} while (seg != ODP_PACKET_SEG_INVALID || cmp_offset < plaintext_len);
 
 cleanup:
-	odp_packet_free(decomp_inpkt);
-	odp_packet_free(decomp_result.output.pkt.packet);
-
 	rc = odpx_comp_session_destroy(decomp_session);
 	CU_ASSERT(!rc);
+
+	odp_packet_free(decomp_inpkt);
+	odp_packet_free(decomp_result.output.pkt.packet);
 }
 
 static int comp_test_deflate_check(void)
