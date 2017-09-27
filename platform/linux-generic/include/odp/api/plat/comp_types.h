@@ -32,8 +32,6 @@ typedef uint64_t odp_comp_session_t;
 
 typedef odp_comp_session_t odpx_comp_session_t;
 
-typedef ODP_HANDLE_T(odp_comp_compl_t);
-
 /**
  * @}
  */

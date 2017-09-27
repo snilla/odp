@@ -490,8 +490,8 @@ static int init_def(odp_comp_generic_session_t *session,
 {
 	comp_ctx_t *comp_ctxp = NULL;
 	z_streamp streamp = NULL;
-	size_t level;
-	size_t strategy;
+	uint32_t level;
+	uint32_t strategy;
 	int32_t window_bits = WINDOW_BITS;
 	odp_comp_level_t cl;
 	odp_comp_huffman_code_t cc;
@@ -538,10 +538,9 @@ static int init_def(odp_comp_generic_session_t *session,
 		return ODP_COMP_SES_CREATE_ERR_INV_COMP;
 	}
 
-	if (cl == ODP_COMP_LEVEL_DEFAULT) {
-		level = Z_DEFAULT_COMPRESSION; /* Z_BEST_COMPRESSION; */
-	} else {
-		/*
+	level = Z_DEFAULT_COMPRESSION; /* Z_BEST_COMPRESSION; */
+	if (cl != ODP_COMP_LEVEL_DEFAULT) {
+			/*
 			Current distribution is like:
 
 			if level falls in lower half = set level to
@@ -556,15 +555,15 @@ static int init_def(odp_comp_generic_session_t *session,
 			range between speed vs default vs level.
 		*/
 
-		odp_comp_level_t mid = (ODP_COMP_LEVEL_MAX + 1) >> 1;
+		odp_comp_level_t mid =
+			(global->algo_capa[params->comp_algo].max_level +
+			 1) >> 1;
 
-		if (cl >= ODP_COMP_LEVEL_MIN &&
+		if (cl == ODP_COMP_LEVEL_MIN ||
 		    cl < mid)
 			level = Z_BEST_SPEED;
-		if (cl == mid)
-			level = Z_DEFAULT_COMPRESSION;
-		if (cl > mid &&
-		    cl <= ODP_COMP_LEVEL_MAX)
+		else if (cl > mid ||
+			 cl == ODP_COMP_LEVEL_MAX)
 			level = Z_BEST_COMPRESSION;
 	}
 
@@ -705,12 +704,12 @@ odp_comp_alg_capability(odp_comp_alg_t comp,
 		/* sw zlib support 3 - Z_BEST_SPEED, Z_BEST_COMPRESSION
 		   and DEFAULT
 		*/
-		capa[0].max_level = 3;
+		capa[0].max_level = Z_BEST_COMPRESSION;
 		return 1;
 	case ODP_COMP_ALG_DEFLATE:
 		capa[0].hash_algo.all_bits = 1;
 		capa[0].support_dict = 0;
-		capa[0].max_level = 3;
+		capa[0].max_level = Z_BEST_COMPRESSION;
 		return 1;
 	default:
 		/* Error unsupported enum */
@@ -1017,8 +1016,8 @@ int odp_comp_init_global(void)
 	global->capa.hash_algos.all_bits = 0;
 	global->capa.max_sessions = MAX_SESSIONS;
 	memset(global->algo_capa, 0, sizeof(global->algo_capa));
-	global->algo_capa[ODP_COMP_ALG_DEFLATE].max_level = ODP_COMP_MAX_LEVEL;
-
+	global->algo_capa[ODP_COMP_ALG_DEFLATE].max_level = Z_BEST_COMPRESSION;
+	global->algo_capa[ODP_COMP_ALG_ZLIB].max_level = Z_BEST_COMPRESSION;
 	return 0;
 }
 
